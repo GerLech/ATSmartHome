@@ -9,6 +9,9 @@
 AT_Database database;
 AT_MessageBuffer msg;
 
+//Shoud be defined if a Ardui-Touch version 01-02 or higher is used
+//#define ARDUITOUCH0102
+
 //file names used with SPIFFS do not remove the starting slash!
 
 #define ATDEVICEFILE "/devices.txt"

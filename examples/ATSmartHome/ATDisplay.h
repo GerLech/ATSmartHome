@@ -94,6 +94,9 @@ void onDblClick(TS_Point p) {
 void initDisplay() {
   pinMode(TFT_LED, OUTPUT);
   digitalWrite(TFT_LED, HIGH);    // switch display on
+  #ifdef ARDUITOUCH0102
+    digitalWrite(TFT_LED, LOW);  
+  #endif
   //start drivers
   tft.begin();
   touch.begin(); 
