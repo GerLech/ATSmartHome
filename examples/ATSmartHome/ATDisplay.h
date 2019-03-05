@@ -57,7 +57,7 @@ void sysSetupDbl(TS_Point p) {
 //handle double click events if device setup page is displayed
 void devSetupDbl(TS_Point p) {
   if (tevent.isInArea(p,20,90,220,130)) {
-    database.registerDev(newdevice);
+    database.registerDev(newdevice, newdevicebits);
     Serial.println("Device registered");
     if (!database.writeDevices(ATDEVICEFILE)) Serial.print("Cannot write devices");
     newdevice = "";

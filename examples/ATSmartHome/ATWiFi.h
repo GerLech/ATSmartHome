@@ -16,6 +16,7 @@
 
 //Global variables
 String newdevice; //new detected device
+uint16_t newdevicebits; //capabilities for new device
 
 //init WiFi and start the access point
 void initWiFi() {
@@ -54,6 +55,9 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
   int16_t devnr;
   uint8_t pkts;
   String strid;
+  uint8_t sz;
+  uint8_t buf[256];
+  int8_t packets;
   ATMESSAGEHEADER msghdr;
   ATDATAPACKET dp;
   //r_data points on to the received data 
@@ -69,6 +73,7 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
   if (devnr < 0) {
     //unknown device we remember the id
     newdevice = strid;
+    newdevicebits = msghdr.devicebits;
   } else {
     //know device we update the results
     pkts = msg.getPackets();
@@ -76,6 +81,10 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
       dp = msg.getData(i);
       database.setResult(devnr * ATMAXDEVCHANNELS + dp.channel, dp);
     }
+    //we look if there is something to answer
+    sz = 250; //maximum payload for esp now 
+    packets = database.getResponse(devnr,&buf[0],&sz);
+    if (packets>0) esp_now_send(buf, buf, sz); //the first buf pointer is used to reference the MAC address
   }
   msg.clear();
 }
