@@ -55,6 +55,7 @@ struct ATDEVICE {
   uint8_t activ = 0;        //the device is in use
   uint8_t service = 0;      //0=ESP-Now
   uint8_t id[6] = {0,0,0,0};//id of the device
+  uint16_t devicebits = 0;  //capabilities for the device
   String name = "";         //name of the device
   String last = "";         //timestamp of last receiving data
 };
@@ -96,13 +97,18 @@ public:
   //index = device index x channels per device + channel number
   void setResult(uint8_t index, ATDATAPACKET data);
   //register a device with the device id as string with format xx:xx:xx:xx:xx:xx
-  boolean registerDev(String deviceId);
+  boolean registerDev(String deviceId, uint16_t devicebits);
   //get the pointer on a result data structure
   //index = device index x channels per device + channel number
   ATCURVALUES getResult(uint16_t index);
   //set the step value for a result
   //index = device index x channels per device + channel number
   void setStep(uint8_t step, uint16_t index);
+  //check if a device has data to be returned parameters are
+  //the number of the device, a pointer to the buffer and a pointer
+  //to the maximum size it returns the number of packets found or -1 if buffer overflow
+  //after return the size parameter contains the used buffer size
+  int8_t getResponse(int16_t device, uint8_t * buffer, uint8_t * size);
 
 private:
   ATCURVALUES _results[ATMAXCHANNELS]; //array to hold results

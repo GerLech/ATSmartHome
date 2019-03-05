@@ -155,7 +155,7 @@ void AT_Database::setResult(uint8_t index, ATDATAPACKET data) {
   for (uint8_t j = 0; j<4; j++) _results[index].value[j] = data.value[j];
 }
 
-boolean AT_Database::registerDev(String deviceId) {
+boolean AT_Database::registerDev(String deviceId, uint16_t devicebits) {
   uint8_t id[6];
   sscanf(deviceId.c_str(), "%x:%x:%x:%x:%x:%x%c",  &id[0], &id[1], &id[2], &id[3], &id[4], &id[5] );
   uint16_t i = 0;
@@ -164,7 +164,41 @@ boolean AT_Database::registerDev(String deviceId) {
   for (uint8_t j = 0; j<6; j++) _devices[i].id[j] = id[j];
   _devices[i].activ = 1;
   _devices[i].service = 0;
+  _devices[i].devicebits = devicebits;
   return true;
+}
+
+int8_t AT_Database::getResponse(int16_t device, uint8_t * buffer, uint8_t * size){
+  uint8_t max = * size;
+  ATMSGPACKET head;
+  ATDATAPACKET data;
+  uint8_t sz = 0;
+  uint8_t i,j;
+  uint16_t base;
+  //first we copy the header for the device
+  for (i = 0; i< 6; i++) head.id[i] = _devices[device].id[i];
+  head.packets = 0;
+  head.devicebits = _devices[device].devicebits;
+  sz = sizeof(head);
+  //now we check if we have channels with data to send
+  base = device * ATMAXDEVCHANNELS;
+  for (i=0; i<ATMAXDEVCHANNELS; i++) {
+    if ((_results[base+i].valid == 1) && (_results[base+i].step == 2) &&
+      ((_results[base+i].type == ATTYPE_ANALOGOUT) ||
+      (_results[base+i].type == ATTYPE_DIGITALOUT))) {
+      head.packets ++;
+      data.type = _results[base+i].type;
+      data.unit = _results[base+i].unit;
+      data.channel = i;
+      for (j=0; j<4; j++) data.value[j] = _results[base+i].value[j];
+      memcpy(buffer+sz,&data,sizeof(data));
+      sz += sizeof(data);
+    }
+  }
+  //finally we copy the header with the correct packet number
+  memcpy(buffer,&head,sizeof(head));
+  * size = sz;
+  return head.packets;
 }
 
 ATCURVALUES AT_Database::getResult(uint16_t index) {
