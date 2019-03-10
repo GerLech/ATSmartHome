@@ -18,7 +18,7 @@ AT_Database::AT_Database() {
   for (i = 0; i<ATMAXCHANNELS; i++) _results[i].valid = 0;
   for (i = 0; i<ATMAXDEVICE; i++) _devices[i].activ = 0;
   for (i = 0; i<ATMAXPAGES; i++) {
-    for (uint8_t j = 0; j<ATWIDGETSPERPAGE; j++) _pages[i].widgets[j].visible = 0;
+    for (uint8_t j = 0; j<ATWIDGETSPERPAGE; j++) _pages[i].widgets[j].status = ATWIDGET_UNUSED;
   }
 }
 
@@ -36,20 +36,31 @@ boolean AT_Database::readConfig(String fileName) {
     return false;
   }
   while (f.available() && (i<ATMAXPAGES)) {
-    while (f.available() && (j<ATWIDGETSPERPAGE))
+    j=0;
+    while (f.available() && (j<ATWIDGETSPERPAGE)) {
       tmp = f.readStringUntil('\n');
-      _pages[i].widgets[j].visible = tmp.toInt();
+      _pages[i].widgets[j].status = tmp.toInt();
       tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].source = tmp.toInt();
+      tmp = f.readStringUntil('\n');
+      _pages[i].widgets[j].type = tmp.toInt();
       tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].size = tmp.toInt();
       tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].bgcolor = tmp.toInt();
       tmp = f.readStringUntil('\n');
+      _pages[i].widgets[j].bgcolorOn = tmp.toInt();
+      tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].fontcolor = tmp.toInt();
       tmp = f.readStringUntil('\n');
+      _pages[i].widgets[j].image = tmp.toInt();
+      tmp = f.readStringUntil('\n');
+      _pages[i].widgets[j].precision = tmp.toInt();
+      tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].label = tmp;
-      i++;
+      j++;
+    }
+    i++;
   }
   return true;
 
@@ -60,12 +71,16 @@ boolean AT_Database::writeConfig(String fileName) {
   if (!f) return false;
   for (uint16_t i = 0; i<ATMAXPAGES; i++) {
     for (uint8_t j = 0; j<ATWIDGETSPERPAGE; j++) {
-      f.print(_pages[i].widgets[j].visible);f.print('\n');
-      if (_pages[i].widgets[j].visible) {
+      f.print(_pages[i].widgets[j].status);f.print('\n');
+      if (_pages[i].widgets[j].status != ATWIDGET_UNUSED) {
         f.print(_pages[i].widgets[j].source);f.print('\n');
+        f.print(_pages[i].widgets[j].type);f.print('\n');
         f.print(_pages[i].widgets[j].size);f.print('\n');
         f.print(_pages[i].widgets[j].bgcolor);f.print('\n');
+        f.print(_pages[i].widgets[j].bgcolorOn);f.print('\n');
         f.print(_pages[i].widgets[j].fontcolor);f.print('\n');
+        f.print(_pages[i].widgets[j].image);f.print('\n');
+        f.print(_pages[i].widgets[j].precision);f.print('\n');
         f.print(_pages[i].widgets[j].label);f.print('\n');
       } else {
         f.printf("0\n0\n-65535\n0\n-\n");
@@ -155,16 +170,54 @@ void AT_Database::setResult(uint8_t index, ATDATAPACKET data) {
   for (uint8_t j = 0; j<4; j++) _results[index].value[j] = data.value[j];
 }
 
-boolean AT_Database::registerDev(String deviceId, uint16_t devicebits) {
+boolean AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
   uint8_t id[6];
   sscanf(deviceId.c_str(), "%x:%x:%x:%x:%x:%x%c",  &id[0], &id[1], &id[2], &id[3], &id[4], &id[5] );
   uint16_t i = 0;
+  uint16_t page, slot, dev;
+  uint16_t channels, source;
+  ATDISPLAYWIDGET * wdg;
+  ATDATAPACKET dp;
   while ((i<ATMAXDEVICE) && (_devices[i].activ == 1)) i++;
   if (i >= ATMAXDEVICE) return false;
+  //save the device
   for (uint8_t j = 0; j<6; j++) _devices[i].id[j] = id[j];
   _devices[i].activ = 1;
   _devices[i].service = 0;
-  _devices[i].devicebits = devicebits;
+  _devices[i].devicebits = msg.getDeviceBits();
+  //setup a default widget for all channels
+  dev = i; //devicenummer
+  page = 0;
+  channels = msg.getPackets();
+  for (i=0; i<channels; i++) {
+    dp = msg.getData(i);
+    source = dev * ATMAXDEVCHAN + dp.channel;
+    setResult(source,dp);
+    do {
+      slot = getFreeSlot(page, ATWIDGET_SMALL);
+      if (slot<0) {
+        page++;
+      } else {
+        Serial.printf("Slot %i get result %i\n",slot,source);
+        wdg = &_pages[page].widgets[slot];
+        wdg->status = ATWIDGET_USED;
+        wdg->source = source;
+        wdg->size = ATWIDGET_SMALL;
+        wdg->type = ATWIDGET_SIMPLE;
+        wdg->bgcolorOn = 0x878f;
+        wdg->fontcolor = 0x0000;
+        wdg->precision = 2;
+        if (dp.type == ATTYPE_SWITCHOUT) {
+          wdg->bgcolor = 0xd699;
+          wdg->label="Switch "+String(i);
+        } else {
+          wdg->bgcolor = 0xFFF2;
+          wdg->label="Channel "+String(i);
+        }
+        wdg->image = 0;
+      }
+    } while ((slot < 0) && (page < ATMAXPAGES));
+  }
   return true;
 }
 
@@ -229,4 +282,130 @@ String AT_GetLocalTime() {
   }
   strftime(sttime, sizeof(sttime), "%Y-%m-%d %H:%M:%S", &timeinfo);
   return sttime;
+}
+
+int16_t AT_Database::getFreeSlot(uint8_t page, uint8_t size) {
+  uint8_t i, result;
+  boolean found = false;
+  ATDISPLAYWIDGET w;
+  uint8_t matrix[9]; //9 elements to avoid out of range error
+  if (page > ATMAXPAGES) return -1;
+  for (i = 0;i<8; i++) matrix[i] = 0;
+  for (i = 0; i<ATWIDGETSPERPAGE; i++) {
+    w = _pages[page].widgets[i];
+    if (w.status != ATWIDGET_UNUSED) {
+      switch (w.size) {
+        case ATWIDGET_SMALL: matrix[i]+=3; break;
+        case ATWIDGET_LEFT: matrix[i]+=1; matrix[i+1]+=1; break;
+        case ATWIDGET_RIGHT: matrix[i+1]+=2; matrix[i]+=2; break;
+        case ATWIDGET_BIG: matrix[i]+=3; matrix[i+1]+=3; break;
+      }
+    }
+  }
+  i=0; found = false; result = 0;
+  while (!found && (i<ATWIDGETSPERPAGE)) {
+    if ((size == ATWIDGET_SMALL) && (matrix[i] == 0)) {
+      found = true; result=i;
+    }
+    if ((size == ATWIDGET_BIG) && (i<7) && (matrix[i] == 0) && (matrix[i+1]==0)) {
+      found = true; result=i;
+    }
+    if ((size == ATWIDGET_LEFT) || (size == ATWIDGET_RIGHT)){
+      if ((i<7) && (matrix[i] == 2) && (matrix[i+1]==2)) {
+        found = true; result=i;
+      }
+      if ((i<7) && (matrix[i] == 1) && (matrix[i+1]==1)) {
+        found = true; result=i+1;
+      }
+    }
+    i++;
+  }
+  if (!found) result = -1;
+  return result;
+}
+String AT_Database::getValueString(uint16_t index, uint8_t precision, boolean useunit ) {
+  ATCURVALUES data;
+  int32_t ival;
+  char fmt[] = "%10.0f";
+  char buf[30];
+  float fval;
+  String result;
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+  data = _results[index];
+  if ((data.type = ATTYPE_ANALOGOUT) || (data.type = ATTYPE_ANALOGOUT)) {
+    //float values
+    if (precision > 9) precision = 9;
+    fval = AT_GetFloat(&data.value[0]);
+    fmt[4]=char(precision+48);
+    sprintf(buf,fmt,fval);
+    result = buf;
+  } else {
+    //integer values
+    ival = AT_GetLong(&data.value[0]);
+    result = String(ival);
+  }
+  if (useunit) result += " "+AT_getUnitString(data.unit);
+  return result;
+}
+
+uint8_t AT_Database::getBooleanValue(uint16_t index){
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+  return _results[index].value[0];
+}
+
+
+boolean AT_Database::isValueOutput(uint16_t index){
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+  return ((_results[index].type == ATTYPE_ANALOGOUT) ||
+          (_results[index].type == ATTYPE_DIGITALOUT) ||
+          (_results[index].type == ATTYPE_SWITCHOUT));
+}
+
+boolean AT_Database::isSwitchOut(uint16_t index) {
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+  return ((_results[index].type == ATTYPE_SWITCHOUT));
+}
+
+boolean AT_Database::isValueZero(uint16_t index){
+  ATCURVALUES data;
+  int32_t ival=0;
+  float fval=0;
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+  data = _results[index];
+  if ((data.type = ATTYPE_ANALOGOUT) || (data.type = ATTYPE_ANALOGOUT)) {
+    //float values
+    fval = AT_GetFloat(&data.value[0]);
+  } else {
+    //integer values
+    ival = AT_GetLong(&data.value[0]);
+  }
+  return (ival==0) && (fval==0);
+}
+//getPage returns the specified display page
+ATDISPLAYPAGE AT_Database::getPage(uint8_t page) {
+  if (page >= ATMAXPAGES) page = ATMAXPAGES - 1;
+  return _pages[page];
+}
+
+boolean AT_Database::clearDevices(String fileName) {
+  for (uint8_t i = 0; i<ATMAXDEVICE; i++) _devices[i].activ = 0;
+  return writeDevices(fileName);
+}
+
+void AT_Database::toggleResult(uint16_t index){
+  if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
+   _results[index].value[0] = (_results[index].value[0] == 0)?1:0;
+}
+
+String AT_Database::getDeviceId(uint8_t device){
+  if (device >= ATMAXDEVICE) return "";
+  String stid;
+  char tmp[4];
+  sprintf(tmp,"%02x",_devices[device].id[0]);
+  stid=tmp;
+  for (uint8_t j = 1; j<6; j++) {
+    sprintf(tmp,":%02x",_devices[device].id[j]);
+    stid = stid += tmp ;
+  }
+  return stid;
 }

@@ -41,6 +41,19 @@
 #define ATMAXPAGES 32 //max number of result pages
 #define ATWIDGETSPERPAGE 8 //number of widgets to be placed on a result page
 
+#define ATWIDGET_UNUSED 0
+#define ATWIDGET_USED 1
+#define ATWIDGET_PLACE 2
+#define ATWIDGET_HIDDEN 3
+
+#define ATWIDGET_SMALL 0
+#define ATWIDGET_BIG 1
+#define ATWIDGET_LEFT 2
+#define ATWIDGET_RIGHT 3
+#define ATWIDGET_BIG1 4
+
+#define ATWIDGET_SIMPLE 0
+
 typedef  //structure to hold current values
 struct ATCURVALUES {
   uint8_t valid;  //the value is valid
@@ -62,11 +75,15 @@ struct ATDEVICE {
 
 typedef //structure to hold a widget setup
 struct ATDISPLAYWIDGET {
-  uint8_t source;      //link to the associated result
-  uint8_t size;        //size 0=240x30,1=120x60 left 2=120x60 right 3=240x60
-  uint16_t bgcolor;    //fill color
+  uint16_t source;      //index into result list
+  uint8_t status;     //status 0=not used, 1=used, 2=placeholder, 3=hidden
+  uint8_t size;        //size 0=240x30,1=240x60 left 2=120x60 right 3=120x60
+  uint8_t type;        //type 0=simple
+  uint16_t bgcolor;    //fill color normal
+  uint16_t bgcolorOn;  //fillcolor for buttons on
   uint16_t fontcolor;  //font color
-  uint8_t visible;     //flag to switch visibility
+  uint8_t image;       //index to an image
+  uint8_t precision;   //precision to show values
   String label = "";   //label
 };
 
@@ -97,7 +114,8 @@ public:
   //index = device index x channels per device + channel number
   void setResult(uint8_t index, ATDATAPACKET data);
   //register a device with the device id as string with format xx:xx:xx:xx:xx:xx
-  boolean registerDev(String deviceId, uint16_t devicebits);
+  // devicebits are the device capabilities channels is the number of channels
+  boolean registerDev(String deviceId, AT_MessageBuffer msg);
   //get the pointer on a result data structure
   //index = device index x channels per device + channel number
   ATCURVALUES getResult(uint16_t index);
@@ -109,6 +127,27 @@ public:
   //to the maximum size it returns the number of packets found or -1 if buffer overflow
   //after return the size parameter contains the used buffer size
   int8_t getResponse(int16_t device, uint8_t * buffer, uint8_t * size);
+  //get a free widget slot for a defined size return -1 if no free slot
+  int16_t getFreeSlot(uint8_t page, uint8_t size);
+  //getPage returns the specified display page
+  ATDISPLAYPAGE getPage(uint8_t page);
+  //return a value as formatted string with or without units
+  String getValueString(uint16_t index, uint8_t precision, boolean useunit );
+  //return value for switches
+  uint8_t getBooleanValue(uint16_t index);
+  //check if a result is a output to device
+  boolean isValueOutput(uint16_t index);
+  //check if a result is a output switch
+  boolean isSwitchOut(uint16_t index);
+  //check if a value is 0
+  boolean isValueZero(uint16_t index);
+  //delete all device
+  boolean clearDevices(String fileName);
+  //toggle switch result
+  void toggleResult(uint16_t index);
+  //get the device id
+  String getDeviceId(uint8_t device);
+
 
 private:
   ATCURVALUES _results[ATMAXCHANNELS]; //array to hold results
