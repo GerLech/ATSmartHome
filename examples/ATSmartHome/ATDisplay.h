@@ -44,11 +44,18 @@ void showPage(int16_t page);
 //handle double click events if system setup page is displayed
 void sysSetupDbl(TS_Point p) {
   if (tevent.isInArea(p,20,60,220,100)) {
+    Serial.println("Start Format");
     SPIFFS.format();
     Serial.println("Format SPIFFS");
     showPage(0);
   }
-  if (tevent.isInArea(p,20,120,220,160)) {
+  if (tevent.isInArea(p,120,60,220,160)) {
+    Serial.println("Start Clear");
+    database.clearDevices(ATDEVICEFILE);
+    Serial.println("Clear done");
+    showPage(0);
+  }
+  if (tevent.isInArea(p,20,180,220,220)) {
     showPage(0);
   }
 
@@ -57,9 +64,10 @@ void sysSetupDbl(TS_Point p) {
 //handle double click events if device setup page is displayed
 void devSetupDbl(TS_Point p) {
   if (tevent.isInArea(p,20,90,220,130)) {
-    database.registerDev(newdevice, newdevicebits);
+    database.registerDev(newdevice, newmsg);
     Serial.println("Device registered");
     if (!database.writeDevices(ATDEVICEFILE)) Serial.print("Cannot write devices");
+    if (!database.writeConfig(ATCONFIGFILE)) Serial.print("Cannot write config");
     newdevice = "";
     showPage(0);
   }
@@ -90,6 +98,49 @@ void onDblClick(TS_Point p) {
   }
 }
 
+int16_t findWidgetSource(uint16_t x, uint16_t y) {
+  uint8_t row = (y - 40)/30;
+  uint8_t col = x/120;
+  int16_t result;
+  ATDISPLAYPAGE pg;
+  ATDISPLAYWIDGET wdg;
+  pg = database.getPage(currentPage);
+  wdg = pg.widgets[row];
+  switch (wdg.size) {
+    case ATWIDGET_SMALL: result = wdg.source; break;
+    case ATWIDGET_LEFT: if (col == 0) {
+        result = wdg.source;
+      } else {
+        result = pg.widgets[row-1].source;
+      }
+      break;
+    case ATWIDGET_RIGHT: if (col == 0) {
+        result = pg.widgets[row+1].source;
+      } else {
+        result = wdg.source;
+      }
+      break;
+    case ATWIDGET_BIG: result = wdg.source; break;
+    case ATWIDGET_BIG1: result = pg.widgets[row-1].source; break;
+  }
+  return result;
+}
+
+//callback for click events
+void onClick(TS_Point p) {
+  uint16_t index;
+  if (currentPage >= 0) {
+    if ((p.y > 40) && (p.y < 200)){
+      index = findWidgetSource(p.x,p.y);
+      if (index >= 0) {
+        database.toggleResult(index);
+        sendData(index);
+      }
+    }
+  }
+}
+
+
 //prepare display and register callback for touch events
 void initDisplay() {
   pinMode(TFT_LED, OUTPUT);
@@ -105,6 +156,7 @@ void initDisplay() {
   tevent.setResolution(tft.width(),tft.height());
   tevent.setDblClick(200);
   tevent.registerOnTouchDblClick(onDblClick);
+  tevent.registerOnTouchClick(onClick);
 
 }
 
@@ -159,7 +211,7 @@ void drawButton(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t bc, uin
 }
 
 //draw a filled rectangle with centered label
-void drawWidget(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t bc, uint16_t rc, String lbl) {
+void drawBox(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t bc, uint16_t rc, String lbl) {
   uint16_t w1,h1;
   int16_t x1,y1;
   tft.fillRect(x,y,w,h,bc);
@@ -178,6 +230,18 @@ void centerText(uint16_t x, uint16_t y, uint16_t w, String text) {
   tft.getTextBounds(text,x,y,&x1,&y1,&w1,&h1);
   tft.setCursor(x+(w-w1)/2,y);
   printTft(text);
+}
+
+//show a simple widget
+void showSimpleWidget(uint16_t x, uint16_t y, ATDISPLAYWIDGET wdg){
+  uint16_t bg;
+  if (database.isSwitchOut(wdg.source)) {
+    bg = (database.getBooleanValue(wdg.source)==0)?wdg.bgcolor:wdg.bgcolorOn;
+    drawButton(x,y,240,30,bg,ILI9341_BLACK,wdg.label);
+  } else {
+    String msg = wdg.label+" "+database.getValueString(wdg.source,2,true);
+    drawBox(x,y,240,30,wdg.bgcolor,wdg.bgcolor,msg);
+  }
 }
 
 //show the top bar on result pages
@@ -208,21 +272,31 @@ void showStatusBar() {
 
 //show result page
 void showResults() {
-  ATCURVALUES val;
+  
   String msg;
-  uint16_t x = 0;
-  uint16_t y = 40;
+  uint16_t col;
+  uint16_t x,y;
   tft.setFont(&AT_Standard9pt7b);
-  tft.setTextColor(ILI9341_BLACK,ILI9341_YELLOW);
-  for (uint16_t i = 0; i<ATMAXCHANNELS; i++) {
-    val = database.getResult(i);
-    if ((val.valid == 1) && (val.step == 1)) {
-      msg = "Sensor "+String(i)+" "+String(AT_GetFloat(val.value))+" °C";
-      drawWidget(x,y,240,30,ILI9341_YELLOW,ILI9341_YELLOW,msg);
-      database.setStep(0,i);
-      y+=30;
+  ATDISPLAYPAGE pg;
+  ATDISPLAYWIDGET wdg;
+  pg = database.getPage(currentPage);
+  for (uint8_t i = 0;i<ATWIDGETSPERPAGE;i++) {
+    wdg = pg.widgets[i];
+    if (wdg.status == ATWIDGET_USED) {
+      tft.setTextColor(wdg.fontcolor,wdg.bgcolor);
+      switch (wdg.size) {
+        case ATWIDGET_SMALL:
+        case ATWIDGET_BIG: x=0;y=i*30+40;
+          break;
+        case ATWIDGET_LEFT: x=0; y=i*30+40;
+          break;
+        case ATWIDGET_RIGHT: x=120; y= (i-1)*30 + 40;
+          break;
+      }
+      switch (wdg.type) {
+        case ATWIDGET_SIMPLE: showSimpleWidget(x, y, wdg); break;
+      }
     }
-    
   }
   
 }
@@ -234,7 +308,8 @@ void showSystemSetup() {
   centerText(0,30,240,"System");
   tft.setTextColor(ILI9341_BLACK,ILI9341_YELLOW);
   drawButton(20,60,200,40,ILI9341_YELLOW,ILI9341_BLUE,"Format FS");
-  drawButton(20,120,200,40,ILI9341_YELLOW,ILI9341_BLUE,"Zurück");
+  drawButton(20,120,200,40,ILI9341_YELLOW,ILI9341_BLUE,"Clear Dev");
+  drawButton(20,180,200,40,ILI9341_YELLOW,ILI9341_BLUE,"Zurück");
 }
 
 //show setup page for device setups

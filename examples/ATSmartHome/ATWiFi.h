@@ -16,7 +16,8 @@
 
 //Global variables
 String newdevice; //new detected device
-uint16_t newdevicebits; //capabilities for new device
+AT_MessageBuffer  newmsg;
+esp_now_peer_info_t info;
 
 //init WiFi and start the access point
 void initWiFi() {
@@ -50,6 +51,37 @@ boolean connectWlan(String ssid, String password) {
  return (WiFi.status() == WL_CONNECTED);
 }
 
+void printESP_Now_Err (String prefix, esp_err_t err) {
+  switch (err) {
+    case ESP_ERR_ESPNOW_BASE: Serial.println(prefix+" ESPNOW error number base"); break;
+    case ESP_ERR_ESPNOW_NOT_INIT: Serial.println(prefix+"ESPNOW is not initialized"); break;
+    case ESP_ERR_ESPNOW_ARG: Serial.println(prefix+"Invalid argument"); break;
+    case ESP_ERR_ESPNOW_NO_MEM: Serial.println(prefix+"Out of memory"); break;
+    case ESP_ERR_ESPNOW_FULL: Serial.println(prefix+" ESPNOW peer list is full"); break;
+    case ESP_ERR_ESPNOW_NOT_FOUND: Serial.println(prefix+"ESPNOW peer is not found"); break;
+    case ESP_ERR_ESPNOW_INTERNAL: Serial.println(prefix+"Internal error"); break;
+    case ESP_ERR_ESPNOW_EXIST: Serial.println(prefix+"ESPNOW peer has existed"); break;
+    case ESP_ERR_ESPNOW_IF: Serial.println(prefix+"Interface error"); break;
+    default : Serial.println(prefix+"Unknown error"); break;
+  }
+}
+
+
+//add a new peer to the peer list
+esp_err_t addPeer(const uint8_t mac[6]) {
+  esp_err_t res = ESP_OK;
+  if (!esp_now_is_peer_exist(mac)) {
+    for (int ii=0;ii<6;ii++) info.peer_addr[ii] = mac[ii];
+    info.channel = 0;
+    info.encrypt = 0;
+    const esp_now_peer_info_t *peer = &info;
+    res = esp_now_add_peer(peer);
+    if (res != ESP_OK) printESP_Now_Err("Add Peer ",res);
+  }
+  return res;
+} 
+
+
 // callback for ESP Now
 void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
   int16_t devnr;
@@ -58,6 +90,7 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
   uint8_t sz;
   uint8_t buf[256];
   int8_t packets;
+  esp_err_t err;
   ATMESSAGEHEADER msghdr;
   ATDATAPACKET dp;
   //r_data points on to the received data 
@@ -73,7 +106,7 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
   if (devnr < 0) {
     //unknown device we remember the id
     newdevice = strid;
-    newdevicebits = msghdr.devicebits;
+    newmsg.readBuffer(r_data);
   } else {
     //know device we update the results
     pkts = msg.getPackets();
@@ -84,14 +117,49 @@ void readESPNow(const uint8_t *mac_addr, const uint8_t *r_data, int data_len) {
     //we look if there is something to answer
     sz = 250; //maximum payload for esp now 
     packets = database.getResponse(devnr,&buf[0],&sz);
-    if (packets>0) esp_now_send(buf, buf, sz); //the first buf pointer is used to reference the MAC address
+    if (packets>0) {
+      err = addPeer(mac_addr);
+      if (err == ESP_OK) {
+        err = esp_now_send(mac_addr, buf, sz);
+        if (err != ESP_OK) printESP_Now_Err("Send Data ",err);
+      }
+    }
   }
   msg.clear();
 }
 
+//send data to an esp-device
+//todo add usage for other outputs too currentrly only switch
+void sendData(uint16_t index) {
+  uint8_t dev = index/ATMAXDEVCHAN;
+  String id;
+  esp_err_t err;
+  id = database.getDeviceId(dev);
+  if (id != "") {
+    AT_MessageBuffer sendbuf;
+    ATCURVALUES val;
+    uint8_t buf[100];
+    uint8_t sz = 100;
+    uint8_t ch = index - (dev * ATMAXDEVCHAN);
+    sendbuf.clear();
+    sendbuf.setId(id);
+    val = database.getResult(index);
+    sendbuf.addSwitchOut(val.value[0]!=0, ch);
+    sendbuf.fillBuffer(buf,&sz);
+    err = addPeer(buf);
+    if (err == ESP_OK) {
+      err = esp_now_send(buf, buf, sz);
+      if (err != ESP_OK) printESP_Now_Err("Send Data ",err);
+    }
+  }
+}
+
 //start ESP NOW
 boolean initESPNow() {
+  esp_now_deinit();
   boolean result = (esp_now_init() == ESP_OK);
+  info.channel = APCHANNEL;
+  info.encrypt = 0;
   if (result) esp_now_register_recv_cb(readESPNow);
   return result;
 }
