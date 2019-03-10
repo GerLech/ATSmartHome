@@ -36,7 +36,7 @@ struct MEMORYDATA {
 MEMORYDATA statinfo;
 //time when last sent
 uint32_t last_sent = 0; //Timestamp for last sent
-uint8_t relais_status = 0;
+uint8_t relais_status = 0; //current status of the relais
 String mymac; //own mac address
 
 //we have two message buffers for send and receive
@@ -122,29 +122,39 @@ void ScanForSlave() {
 void sendData() {
   uint8_t buf[100]; //buffer for esp
   uint8_t sz = 100;
+  //clear message buffer
   sendmsg.clear();
   if (DEBUG) {
     Serial.println("Sende "+mymac);
   }
   sendmsg.setId(mymac);
+  //add current relais status as a boolean message to the buffer
   sendmsg.addSwitchOut(relais_status != 0,CHANNEL_RELAIS);
+  //fill the buffer and send the content to the control center
   if (sendmsg.fillBuffer(buf,&sz)) esp_now_send(NULL, buf, sz);
+  //remember the time to calculate interval
   last_sent=millis();
 }
 
+//callback on receive messages from ESP-Now
 void readESPNow(uint8_t *mac_addr, uint8_t *r_data, uint8_t data_len) {
   ATDATAPACKET data;
   uint32_t newstatus;
+  //copy received data into receive message buffer
   rcvmsg.readBuffer(r_data);
   if (mymac.equalsIgnoreCase(rcvmsg.getId())) {
+    //accept only messages for this device
     if (rcvmsg.getPackets() > 0) {
+      //did we get a data packet
       data = rcvmsg.getData(0);
       if (DEBUG) {
         Serial.printf("Got data for channel %i  value %i \n",data.channel, data.value[0]);
       }  
       if (data.channel == CHANNEL_RELAIS) {
+        //if the data were for the right channel set the new status
         newstatus = data.value[0];
         if (newstatus != relais_status) {
+          //if the status has changed we export it to the relais
           relais_status = newstatus;
           digitalWrite(RELAIS_PIN,relais_status);
           if (DEBUG){
@@ -202,6 +212,7 @@ void setup() {
 }
 
 void loop() {
+  //send messages to the control center on a regular base
   if ((millis() - last_sent) > INTERVALL) {  //intervall to send data change this if required
     sendData();
   }
