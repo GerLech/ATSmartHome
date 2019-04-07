@@ -529,6 +529,8 @@ String AT_Database::getDeviceId(uint8_t device){
 
 //return the device name or id or - if inaktiv
 String AT_Database::getDeviceName(uint8_t device){
+  if (device >= ATMAXDEVICE) return "";
+  Serial.printf("Device = %i von %i\n",device,ATMAXDEVICE );
   if (_devices[device].activ == 0) return "-";
   if ((_devices[device].name == "")||(_devices[device].name == "-")) return getDeviceId(device);
   return _devices[device].name;

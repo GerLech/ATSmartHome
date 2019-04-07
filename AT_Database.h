@@ -34,7 +34,7 @@
 
 #ifndef AT_Database_h
 #define AT_Database_h
-#ifdef ATUSEESP32
+#if defined(ESP32)
   #define ATMAXCHANNELS 256 //max number of channels
   #define ATMAXDEVICE 32 //max number of devices
   #define ATMAXDEVCHAN 8 //max number channels per device

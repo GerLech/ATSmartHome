@@ -14,6 +14,7 @@ version 0.1
 #define ATSTYLECHLLISTACT 9
 #define ATSTYLEOPTIONS 10
 #define ATSTYLESELECTED 11
+#define ATSTYLEFRMLBLCTR 12
 
 const ATSTYLE AT_display_styles[] = {
   { //ATSTYLEBLUEYELLOW
@@ -100,6 +101,13 @@ const ATSTYLE AT_display_styles[] = {
     .alignment = ATALIGNCENTER,
     .font = &AT_Standard9pt7b
   },
+  { //ATSTYLEFRMLBLCTR
+    .fill = ATblack,
+    .border = ATblack,
+    .color = ATwhite,
+    .alignment = ATALIGNCENTER,
+    .font = &AT_Standard9pt7b
+  },
 };
 
 #define ATPAGRESULTS 0
@@ -178,7 +186,7 @@ const ATFORM AT_devfrm = {
       .size = 2,
       .row = 1,
       .col = 0,
-      .style = ATSTYLEFRMLBL,
+      .style = ATSTYLEFRMLBLCTR,
     },
     {
       .type = ATFRMTEXT,
@@ -199,7 +207,7 @@ const ATFORM AT_wdgfrm = {
       .size = 2,
       .row = 0,
       .col = 0,
-      .style = ATSTYLEFRMLBL,
+      .style = ATSTYLEFRMLBLCTR,
     },
     {
       .type = ATFRMTEXT,
