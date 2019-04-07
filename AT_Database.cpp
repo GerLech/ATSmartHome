@@ -1,4 +1,4 @@
-//Version 0.1
+//Version 0.4
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
@@ -8,24 +8,39 @@
 #include <AT_MessageBuffer.h>
 #include "AT_Database.h"
 #include "FS.h"
-#include "SPIFFS.h"
+#if defined(ESP32)
+  #include "SPIFFS.h"
+  #define ATUSEESP32
+#else
+  #include "ESP8266WiFi.h"
+  #define FILE_READ       "r"
+  #define FILE_WRITE      "w"
+  #define FILE_APPEND     "a"
+#endif
 
+#define CONFVERSION "V1.0"
 
-
-AT_Database::AT_Database() {
+AT_Database::AT_Database(String deviceFile, String confFile) {
   //init the database
   uint16_t i;
+  _deviceFile = deviceFile;
+  _confFile = confFile;
   for (i = 0; i<ATMAXCHANNELS; i++) _results[i].valid = 0;
   for (i = 0; i<ATMAXDEVICE; i++) _devices[i].activ = 0;
   for (i = 0; i<ATMAXPAGES; i++) {
     for (uint8_t j = 0; j<ATWIDGETSPERPAGE; j++) _pages[i].widgets[j].status = ATWIDGET_UNUSED;
   }
 }
+boolean AT_Database::readConfig() {
+  return readConfig(_confFile);
+}
 
 boolean AT_Database::readConfig(String fileName) {
   uint16_t i = 0;
   uint8_t j = 0;
+  boolean old = false;
   String tmp;
+  String version;
   char hex[3];
   if (!SPIFFS.exists(fileName)) {
     //does not exist create
@@ -35,10 +50,18 @@ boolean AT_Database::readConfig(String fileName) {
   if (!f) {
     return false;
   }
+  version = f.readStringUntil('\n');
+  if (version != CONFVERSION) old = true;
   while (f.available() && (i<ATMAXPAGES)) {
     j=0;
     while (f.available() && (j<ATWIDGETSPERPAGE)) {
-      tmp = f.readStringUntil('\n');
+      if (old){
+        //we have a config without version info
+        tmp=version;
+        old = false;
+      } else {
+        tmp = f.readStringUntil('\n');
+      }
       _pages[i].widgets[j].status = tmp.toInt();
       tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].source = tmp.toInt();
@@ -58,6 +81,28 @@ boolean AT_Database::readConfig(String fileName) {
       _pages[i].widgets[j].precision = tmp.toInt();
       tmp = f.readStringUntil('\n');
       _pages[i].widgets[j].label = tmp;
+      if (version == CONFVERSION) {
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].val1 = tmp.toFloat();
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].color1 = tmp.toInt();
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].val2 = tmp.toFloat();
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].color2 = tmp.toInt();
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].val3 = tmp.toFloat();
+        tmp = f.readStringUntil('\n');
+        _pages[i].widgets[j].color3 = tmp.toInt();
+      } else {
+        _pages[i].widgets[j].val1 = 0;
+        _pages[i].widgets[j].color1 = 0;
+        _pages[i].widgets[j].val2 = 0;
+        _pages[i].widgets[j].color2 = 0;
+        _pages[i].widgets[j].val3 = 0;
+        _pages[i].widgets[j].color3 = 0;
+      }
+
       j++;
     }
     i++;
@@ -66,29 +111,40 @@ boolean AT_Database::readConfig(String fileName) {
 
 }
 
+boolean AT_Database::writeConfig() {
+  return writeConfig(_confFile);
+}
+
 boolean AT_Database::writeConfig(String fileName) {
   File f = SPIFFS.open(fileName, FILE_WRITE);
   if (!f) return false;
+  f.print("V1.0");f.print('\n');
   for (uint16_t i = 0; i<ATMAXPAGES; i++) {
     for (uint8_t j = 0; j<ATWIDGETSPERPAGE; j++) {
       f.print(_pages[i].widgets[j].status);f.print('\n');
-      if (_pages[i].widgets[j].status != ATWIDGET_UNUSED) {
-        f.print(_pages[i].widgets[j].source);f.print('\n');
-        f.print(_pages[i].widgets[j].type);f.print('\n');
-        f.print(_pages[i].widgets[j].size);f.print('\n');
-        f.print(_pages[i].widgets[j].bgcolor);f.print('\n');
-        f.print(_pages[i].widgets[j].bgcolorOn);f.print('\n');
-        f.print(_pages[i].widgets[j].fontcolor);f.print('\n');
-        f.print(_pages[i].widgets[j].image);f.print('\n');
-        f.print(_pages[i].widgets[j].precision);f.print('\n');
-        f.print(_pages[i].widgets[j].label);f.print('\n');
-      } else {
-        f.printf("0\n0\n-65535\n0\n-\n");
-      }
+      f.print(_pages[i].widgets[j].source);f.print('\n');
+      f.print(_pages[i].widgets[j].type);f.print('\n');
+      f.print(_pages[i].widgets[j].size);f.print('\n');
+      f.print(_pages[i].widgets[j].bgcolor);f.print('\n');
+      f.print(_pages[i].widgets[j].bgcolorOn);f.print('\n');
+      f.print(_pages[i].widgets[j].fontcolor);f.print('\n');
+      f.print(_pages[i].widgets[j].image);f.print('\n');
+      f.print(_pages[i].widgets[j].precision);f.print('\n');
+      f.print(_pages[i].widgets[j].label);f.print('\n');
+      f.print(_pages[i].widgets[j].val1);f.print('\n');
+      f.print(_pages[i].widgets[j].color1);f.print('\n');
+      f.print(_pages[i].widgets[j].val2);f.print('\n');
+      f.print(_pages[i].widgets[j].color2);f.print('\n');
+      f.print(_pages[i].widgets[j].val3);f.print('\n');
+      f.print(_pages[i].widgets[j].color3);f.print('\n');
     }
   }
   return true;
 
+}
+
+boolean AT_Database::readDevices() {
+  return readDevices(_deviceFile);
 }
 
 boolean AT_Database::readDevices(String fileName) {
@@ -124,6 +180,10 @@ boolean AT_Database::readDevices(String fileName) {
     i++;
   }
   return true;
+}
+
+boolean AT_Database::writeDevices() {
+  return writeDevices(_deviceFile);
 }
 
 boolean AT_Database::writeDevices(String fileName) {
@@ -170,7 +230,11 @@ void AT_Database::setResult(uint8_t index, ATDATAPACKET data) {
   for (uint8_t j = 0; j<4; j++) _results[index].value[j] = data.value[j];
 }
 
-boolean AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
+int8_t AT_Database::registerDev() {
+  return registerDev(_newDevice, _newMsg);
+}
+
+int8_t AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
   uint8_t id[6];
   sscanf(deviceId.c_str(), "%x:%x:%x:%x:%x:%x%c",  &id[0], &id[1], &id[2], &id[3], &id[4], &id[5] );
   uint16_t i = 0;
@@ -179,7 +243,7 @@ boolean AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
   ATDISPLAYWIDGET * wdg;
   ATDATAPACKET dp;
   while ((i<ATMAXDEVICE) && (_devices[i].activ == 1)) i++;
-  if (i >= ATMAXDEVICE) return false;
+  if (i >= ATMAXDEVICE) return -1;
   //save the device
   for (uint8_t j = 0; j<6; j++) _devices[i].id[j] = id[j];
   _devices[i].activ = 1;
@@ -214,11 +278,18 @@ boolean AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
           wdg->bgcolor = 0xFFF2;
           wdg->label="Channel "+String(i);
         }
+        wdg->val1 = 0;
+        wdg->color1=0;
+        wdg->val2 = 0;
+        wdg->color2=0;
+        wdg->val3 = 0;
+        wdg->color3=0;
         wdg->image = 0;
       }
     } while ((slot < 0) && (page < ATMAXPAGES));
   }
-  return true;
+  _newDevice = ""; //signal it was registered
+  return dev;
 }
 
 int8_t AT_Database::getResponse(int16_t device, uint8_t * buffer, uint8_t * size){
@@ -276,12 +347,27 @@ String AT_GetId(uint8_t id[6]){
 
 String AT_GetLocalTime() {
   char sttime[20] = "No Time available!";
-  struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    return sttime;
-  }
-  strftime(sttime, sizeof(sttime), "%Y-%m-%d %H:%M:%S", &timeinfo);
+  #ifdef ATUSEESP32
+    struct tm timeinfo;
+    if(!getLocalTime(&timeinfo)){
+      return sttime;
+    }
+    strftime(sttime, sizeof(sttime), "%Y-%m-%d %H:%M:%S", &timeinfo);
+  #endif
   return sttime;
+}
+
+int16_t AT_Database::getFreeSlot(uint8_t size) {
+  uint8_t page = 0;
+  uint8_t slot = 0;
+  do {
+    slot = getFreeSlot(page, ATWIDGET_SMALL);
+    if (slot<0) {
+      page++;
+    }
+  } while ((slot < 0) && (page < ATMAXPAGES));
+  if (slot < 0) return -1;
+  return page*ATWIDGETSPERPAGE+slot;
 }
 
 int16_t AT_Database::getFreeSlot(uint8_t page, uint8_t size) {
@@ -381,16 +467,47 @@ boolean AT_Database::isValueZero(uint16_t index){
   }
   return (ival==0) && (fval==0);
 }
+
+//check if a result is valid
+boolean AT_Database::isValid(uint16_t index) {
+  if (index > ATMAXCHANNELS) return false;
+  return (_results[index].valid == 1);
+}
+
 //getPage returns the specified display page
 ATDISPLAYPAGE AT_Database::getPage(uint8_t page) {
   if (page >= ATMAXPAGES) page = ATMAXPAGES - 1;
   return _pages[page];
 }
 
-boolean AT_Database::clearDevices(String fileName) {
-  for (uint8_t i = 0; i<ATMAXDEVICE; i++) _devices[i].activ = 0;
-  return writeDevices(fileName);
+//getWidget returns the widget in slot on page
+ATDISPLAYWIDGET AT_Database::getWidget(uint8_t page, uint8_t slot){
+  if (page >= ATMAXPAGES) page = ATMAXPAGES - 1;
+  if (slot >= ATWIDGETSPERPAGE) slot = ATWIDGETSPERPAGE - 1;
+  return _pages[page].widgets[slot];
 }
+
+ATDISPLAYWIDGET *  AT_Database::getWidgetAdr(uint8_t page, uint8_t slot){
+  return &_pages[page].widgets[slot];
+}
+
+
+
+boolean AT_Database::clearDevices() {
+  for (uint8_t i = 0; i<ATMAXDEVICE; i++) deleteDevice(i);
+  if (writeConfig()) {
+    return writeDevices();
+  } else {
+    return false;
+  }
+}
+
+//delete one device
+boolean AT_Database::deleteDevice(uint8_t device){
+  _devices[device].activ = 0;
+  deleteWidgetsForDevice(device);
+}
+
 
 void AT_Database::toggleResult(uint16_t index){
   if (index > ATMAXCHANNELS) index = ATMAXCHANNELS-1;
@@ -408,4 +525,68 @@ String AT_Database::getDeviceId(uint8_t device){
     stid = stid += tmp ;
   }
   return stid;
+}
+
+//return the device name or id or - if inaktiv
+String AT_Database::getDeviceName(uint8_t device){
+  if (_devices[device].activ == 0) return "-";
+  if ((_devices[device].name == "")||(_devices[device].name == "-")) return getDeviceId(device);
+  return _devices[device].name;
+}
+
+//return pointer to a device
+ATDEVICE * AT_Database::getDevice(uint8_t device){
+  if (device >= ATMAXDEVICE) return 0;
+  return &_devices[device];
+}
+
+//return true if new device waits for registration
+boolean AT_Database::hasNewDevice(){
+  return _newDevice != "";
+}
+
+//read message data into _newMsg
+void AT_Database::readNewMessage(String newDevice, const uint8_t * buffer) {
+  _newDevice = newDevice;
+  _newMsg.readBuffer(buffer);
+}
+
+//return the index = pag* ATWIDGETSPERPAGE + slot for a widget of given source
+//return -1 if no widget exists
+int16_t AT_Database::findWidgetBySource(uint16_t source){
+  boolean found = false;
+  uint8_t pg = 0;
+  uint8_t slt = 0;
+  while ((!found) && (pg < ATMAXPAGES)){
+    slt = 0;
+    while ((!found) && (slt < ATWIDGETSPERPAGE)) {
+      found = (_pages[pg].widgets[slt].source == source) && (_pages[pg].widgets[slt].status != ATWIDGET_UNUSED);
+      if (!found) slt++;
+    }
+    if (!found) pg++;
+  }
+  if (found){
+    return pg*ATWIDGETSPERPAGE+slt;
+  } else {
+    return -1;
+  }
+}
+//delete all widgets for a device
+void AT_Database::deleteWidgetsForDevice(uint8_t device){
+  uint16_t minSrc = device * ATMAXDEVCHANNELS;
+  uint16_t maxSrc = minSrc + ATMAXDEVCHANNELS;
+  uint16_t src;
+  for (uint8_t pg = 0; pg<ATMAXPAGES; pg++) {
+    for(uint8_t slt = 0; slt < ATWIDGETSPERPAGE; slt++){
+      src = _pages[pg].widgets[slt].source;
+      if ((src >= minSrc) && (src < maxSrc)) _pages[pg].widgets[slt].status = ATWIDGET_UNUSED;
+    }
+  }
+}
+
+//set the source for a widget
+void AT_Database::setWidgetSource(uint16_t widget, uint16_t source){
+  uint8_t page = widget/ATWIDGETSPERPAGE;
+  uint8_t slot = widget % ATWIDGETSPERPAGE;
+  _pages[page].widgets[slot].source = source;
 }
