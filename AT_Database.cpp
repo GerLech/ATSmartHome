@@ -235,17 +235,17 @@ int8_t AT_Database::registerDev() {
 }
 
 int8_t AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
-  uint8_t id[6];
-  sscanf(deviceId.c_str(), "%x:%x:%x:%x:%x:%x%c",  &id[0], &id[1], &id[2], &id[3], &id[4], &id[5] );
+  ATMESSAGEHEADER mh = msg.getHeader();
   uint16_t i = 0;
   uint16_t page, slot, dev;
   uint16_t channels, source;
   ATDISPLAYWIDGET * wdg;
   ATDATAPACKET dp;
+  Serial.println("Start search");
   while ((i<ATMAXDEVICE) && (_devices[i].activ == 1)) i++;
   if (i >= ATMAXDEVICE) return -1;
   //save the device
-  for (uint8_t j = 0; j<6; j++) _devices[i].id[j] = id[j];
+  for (uint8_t j = 0; j<6; j++) _devices[i].id[j] = mh.id[j];
   _devices[i].activ = 1;
   _devices[i].service = 0;
   _devices[i].devicebits = msg.getDeviceBits();
@@ -253,7 +253,9 @@ int8_t AT_Database::registerDev(String deviceId, AT_MessageBuffer msg) {
   dev = i; //devicenummer
   page = 0;
   channels = msg.getPackets();
+  if (channels >= ATMAXDEVCHAN) channels = ATMAXDEVCHAN - 1;
   for (i=0; i<channels; i++) {
+    Serial.printf("Try channel %i \n",i);
     dp = msg.getData(i);
     source = dev * ATMAXDEVCHAN + dp.channel;
     setResult(source,dp);

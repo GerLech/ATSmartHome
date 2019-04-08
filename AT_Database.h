@@ -43,7 +43,7 @@
   #define ATMAXCHANNELS 64 //max number of channels
   #define ATMAXDEVICE 16 //max number of devices
   #define ATMAXDEVCHAN 4 //max number channels per device
-  #define ATMAXPAGES 8 //max number of result pages
+  #define ATMAXPAGES 4 //max number of result pages
 #endif
 
 #define ATWIDGETSPERPAGE 8 //number of widgets to be placed on a result page
