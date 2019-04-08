@@ -86,6 +86,6 @@ void setup() {
 
 void loop() {
   yield();
-  //tevent.pollTouchScreen();
-  //dsp.updateDisplay();
+  tevent.pollTouchScreen();
+  dsp.updateDisplay();
 }
