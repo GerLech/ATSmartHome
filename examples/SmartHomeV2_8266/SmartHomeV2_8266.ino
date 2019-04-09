@@ -16,6 +16,7 @@
 #define TFT_CS   D1      //diplay chip select
 #define TFT_DC   D2      //display d/c
 #define TFT_LED  15     //display background LED
+#define ARDUITOUCH_VERSION 1 //0 for older 1 for new with PNP Transistor
 
 #define TOUCH_CS 0    //touch screen chip select
 #define TOUCH_IRQ 2     //touch screen interrupt
@@ -32,10 +33,8 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 XPT2046_Touchscreen touch(TOUCH_CS,TOUCH_IRQ);
 TouchEvent tevent(touch);
 
-AT_Display dsp(&tft,&database,TFT_LED);
+AT_Display dsp(&tft,&database,TFT_LED,ARDUITOUCH_VERSION);
 
-//Shoud be defined if a Ardui-Touch version 01-02 or higher is used
-#define ARDUITOUCHB
 
 
 //sub files for this scetch do not change the order

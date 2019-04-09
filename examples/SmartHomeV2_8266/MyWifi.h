@@ -92,6 +92,7 @@ void readESPNow(uint8_t *mac_addr, uint8_t *r_data, uint8_t data_len) {
     sz = 250; //maximum payload for esp now 
     packets = database.getResponse(devnr,&buf[0],&sz);
     if (packets>0) {
+      Serial.println("Send response");
       err = esp_now_add_peer(mac_addr,ESP_NOW_ROLE_SLAVE,0,NULL,0);
       if (err == ESP_OK) {
         err = esp_now_send(mac_addr, buf, sz);
@@ -121,10 +122,10 @@ void sendData(uint16_t index) {
     val = database.getResult(index);
     sendbuf.addSwitchOut(val.value[0]!=0, ch);
     sendbuf.fillBuffer(buf,&sz);
-    err = esp_now_add_peer(buf,ESP_NOW_ROLE_SLAVE,0,NULL,0);
+    err = esp_now_add_peer(buf,ESP_NOW_ROLE_MAX,0,NULL,0);
     if (err == ESP_OK) {
       err = esp_now_send(buf, buf, sz);
-      if (err != ESP_OK) Serial.println("Sen data failed");
+      if (err != ESP_OK) Serial.println("Send data failed");
     }
   }
 }
