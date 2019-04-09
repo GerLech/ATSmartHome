@@ -91,7 +91,7 @@
 
 
 typedef //struct for page definition
-struct ATPAGETYPE {
+struct {
   char title[50];
   uint16_t subpages;
   uint8_t content;
@@ -101,19 +101,19 @@ struct ATPAGETYPE {
   uint8_t botbarStyle;
   char botbarText[30];
   uint8_t previousPage;
-};
+} ATPAGETYPE;
 
 typedef
-struct ATSTYLE {
+struct {
   uint16_t fill;
   uint16_t border;
   uint16_t color;
   uint8_t alignment;
   const GFXfont *font;
-};
+} ATSTYLE;
 
 typedef
-struct ATFORMELEMENT {
+struct {
   uint8_t type;
   uint8_t size;
   uint8_t row;
@@ -121,20 +121,20 @@ struct ATFORMELEMENT {
   uint8_t style;
   uint8_t optcnt;
   String optlist[16];
-};
+} ATFORMELEMENT;
 
 typedef
-struct ATFORM {
+struct {
   uint8_t elementCnt;
   ATFORMELEMENT elements[24];
-};
+} ATFORM;
 
 #ifndef AT_Display_h
 #define AT_Display_h
 
 class AT_Display {
 public:
-  AT_Display(Adafruit_ILI9341 *tft, AT_Database *database,  uint8_t led);
+  AT_Display(Adafruit_ILI9341 *tft, AT_Database *database,  uint8_t led, uint8_t arduitouchVersion = 0);
   //start display handling set update interval in seconds
   void begin(uint16_t update);
   //switch background led on or off
@@ -291,8 +291,9 @@ private:
   uint8_t _edType; //editor type
   uint8_t _kbdlevel; //current keyboard level
   String _edvaltxt; //current editor input
-  int32_t _edvalint;
-  float _edvalflt;
+  int32_t _edvalint; //current edit integer
+  float _edvalflt; //current edit float
+  uint8_t _arduitouchVersion; //version of arduitouch Hardware
 };
 
 #endif

@@ -187,6 +187,8 @@ const ATFORM AT_devfrm = {
       .row = 1,
       .col = 0,
       .style = ATSTYLEFRMLBLCTR,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMTEXT,
@@ -194,6 +196,8 @@ const ATFORM AT_devfrm = {
       .row = 2,
       .col = 0,
       .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
     },
 
   }
@@ -208,6 +212,8 @@ const ATFORM AT_wdgfrm = {
       .row = 0,
       .col = 0,
       .style = ATSTYLEFRMLBLCTR,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMTEXT,
@@ -215,6 +221,8 @@ const ATFORM AT_wdgfrm = {
       .row = 1,
       .col = 0,
       .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -222,6 +230,8 @@ const ATFORM AT_wdgfrm = {
       .row = 2,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMSELECT,
@@ -238,6 +248,8 @@ const ATFORM AT_wdgfrm = {
       .row = 3,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMCOLOR,
@@ -245,6 +257,8 @@ const ATFORM AT_wdgfrm = {
       .row = 3,
       .col = 1,
       .style = 0,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -252,6 +266,8 @@ const ATFORM AT_wdgfrm = {
       .row = 4,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMCOLOR,
@@ -259,6 +275,8 @@ const ATFORM AT_wdgfrm = {
       .row = 4,
       .col = 1,
       .style = 0,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -266,6 +284,8 @@ const ATFORM AT_wdgfrm = {
       .row = 5,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMCOLOR,
@@ -273,6 +293,8 @@ const ATFORM AT_wdgfrm = {
       .row = 5,
       .col = 1,
       .style = 0,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -280,6 +302,8 @@ const ATFORM AT_wdgfrm = {
       .row = 6,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMINT,
@@ -287,6 +311,8 @@ const ATFORM AT_wdgfrm = {
       .row = 6,
       .col = 1,
       .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -294,6 +320,8 @@ const ATFORM AT_wdgfrm = {
       .row = 7,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMINT,
@@ -301,6 +329,8 @@ const ATFORM AT_wdgfrm = {
       .row = 7,
       .col = 1,
       .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMLABEL,
@@ -308,6 +338,8 @@ const ATFORM AT_wdgfrm = {
       .row = 8,
       .col = 0,
       .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
     },
     {
       .type = ATFRMINT,
@@ -315,6 +347,8 @@ const ATFORM AT_wdgfrm = {
       .row = 8,
       .col = 1,
       .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
     },
 
   }

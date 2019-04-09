@@ -50,10 +50,11 @@ uint16_t convertColor(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
-AT_Display::AT_Display(Adafruit_ILI9341 *tft, AT_Database *database, uint8_t led) {
+AT_Display::AT_Display(Adafruit_ILI9341 *tft, AT_Database *database, uint8_t led, uint8_t arduitouchVersion) {
   _tft = tft;
   _database = database;
   _led = led;
+  _arduitouchVersion = arduitouchVersion;
 }
 
 void AT_Display::begin(uint16_t update){
@@ -67,19 +68,19 @@ void AT_Display::begin(uint16_t update){
 }
 
 void AT_Display::display(boolean on) {
-  #ifdef ARDUITOUCHB
+  if (_arduitouchVersion > 0) {
     if (on) {
       digitalWrite(_led,0);
     }else {
       digitalWrite(_led,1);
     }
-  #else
-  if (on) {
-    digitalWrite(_led,1);
-  }else {
-    digitalWrite(_led,0);
+  } else {
+    if (on) {
+      digitalWrite(_led,1);
+    }else {
+      digitalWrite(_led,0);
+    }
   }
-  #endif
 }
 
 void AT_Display::updateDisplay() {
@@ -111,8 +112,8 @@ void AT_Display::showContent(uint8_t type){
 //show a list of results with custom widgets
 void AT_Display::showResults(){
   String msg;
-  uint16_t col;
   uint16_t x,y;
+  x = 0; y = 0;
   ATDISPLAYPAGE pg;
   ATDISPLAYWIDGET wdg;
   pg = _database->getPage(_subpage);
@@ -337,6 +338,7 @@ void AT_Display::alignText(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8
   int16_t x1,y1,hx;
   _tft->getTextBounds(encodeUnicode(text),x,y,&x1,&y1,&w1,&h1);
   hx = y-y1;
+  xx = 0;
   switch (alignment) {
     case ATALIGNCENTER : xx = x+(w-w1)/2; break;
     case ATALIGNLEFT : xx = x+4; break;
@@ -710,7 +712,7 @@ int16_t AT_Display::findWidgetSource(uint8_t line, uint8_t column) {
 }
 
 int16_t AT_Display::findWidget(uint8_t line, uint8_t column) {
-  int16_t result;
+  int16_t result = -1;
   ATDISPLAYPAGE pg;
   ATDISPLAYWIDGET wdg;
   pg = _database->getPage(_subpage);
@@ -737,7 +739,7 @@ int16_t AT_Display::findWidget(uint8_t line, uint8_t column) {
 
 
 int16_t AT_Display::findFormElement( uint8_t line, uint8_t column){
-  uint8_t i = _curForm->elementCnt - 1;
+  int16_t i = _curForm->elementCnt - 1;
   while ((i>=0) && !((_curForm->elements[i].row == line) &&
   ((_curForm->elements[i].size ==2) || (_curForm->elements[i].col == column)))) i--;
   return i;
@@ -789,7 +791,7 @@ void AT_Display::clickBar(boolean bottom,TS_Point p){
   }
 }
 void AT_Display::clickResults(uint8_t line, uint8_t column) {
-  uint16_t index = findWidgetSource(line,column);
+  int16_t index = findWidgetSource(line,column);
   if (index >= 0) {
     _database->toggleResult(index);
     if (_onResultChange) _onResultChange(index);
@@ -809,7 +811,7 @@ void AT_Display::clickList(uint8_t line){
 }
 
 void AT_Display::clickForm(uint8_t line, uint8_t column, uint16_t xPos){
-  uint8_t element = findFormElement(line,column);
+  int16_t element = findFormElement(line,column);
   if (element < 0) return;
   switch (_curForm->elements[element].type) {
     case ATFRMTEXT: edKbdOn(element); break;
@@ -887,7 +889,7 @@ void AT_Display::edKbdClick(TS_Point p){
 
 }
 void AT_Display::numPadClick(TS_Point p, boolean isFloat){
-  uint8_t r,c,index;
+  uint8_t r,c;
   int8_t num;
   boolean update = true;
   if ((p.y>80) && (p.y <240) && (p.x > 40) && (p.x < 200)) { //num pad area

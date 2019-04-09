@@ -62,26 +62,26 @@
 #define ATWIDGET_SIMPLE 0
 
 typedef  //structure to hold current values
-struct ATCURVALUES {
+struct {
   uint8_t valid;  //the value is valid
   uint8_t step;   //processing step 1 means updated
   uint8_t type;   //type of the data see AT_MessageBuffer.h
   uint8_t unit;   //unit of the data see AT_MessageBuffer.h
   uint8_t value[4]; //four data bytes to hold a float or a long integer
-};
+}  ATCURVALUES;
 
 typedef //structure to  hold a device definition
-struct ATDEVICE {
+struct {
   uint8_t activ = 0;        //the device is in use
   uint8_t service = 0;      //0=ESP-Now
   uint8_t id[6] = {0,0,0,0};//id of the device
   uint16_t devicebits = 0;  //capabilities for the device
   String name = "";         //name of the device
   String last = "";         //timestamp of last receiving data
-};
+} ATDEVICE;
 
 typedef //structure to hold a widget setup
-struct ATDISPLAYWIDGET {
+struct {
   uint16_t source;      //index into result list
   uint8_t status;     //status 0=not used, 1=used, 2=placeholder, 3=hidden
   uint8_t size;        //size 0=240x30,1=240x60 left 2=120x60 right 3=120x60
@@ -98,12 +98,12 @@ struct ATDISPLAYWIDGET {
   uint16_t color2; //color associated with value 2
   float val3; //threshold value3
   uint16_t color3; //color associated with value 3
-};
+} ATDISPLAYWIDGET;
 
 typedef //struct to hold widgets per page
-struct ATDISPLAYPAGE {
+struct {
   ATDISPLAYWIDGET widgets[ATWIDGETSPERPAGE];
-};
+} ATDISPLAYPAGE;
 
 //convers id to a string with format xx:xx:xx:xx:xx:xx
 String AT_GetId(uint8_t id[6]);

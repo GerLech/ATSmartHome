@@ -329,6 +329,7 @@ int8_t AT_Database::getResponse(int16_t device, uint8_t * buffer, uint8_t * size
 
 ATCURVALUES AT_Database::getResult(uint16_t index) {
   if (index<ATMAXCHANNELS) return _results[index];
+  return _results[0];
 }
 
 void AT_Database::setStep(uint8_t step, uint16_t index) {
@@ -361,7 +362,7 @@ String AT_GetLocalTime() {
 
 int16_t AT_Database::getFreeSlot(uint8_t size) {
   uint8_t page = 0;
-  uint8_t slot = 0;
+  int16_t slot = 0;
   do {
     slot = getFreeSlot(page, ATWIDGET_SMALL);
     if (slot<0) {
@@ -508,6 +509,7 @@ boolean AT_Database::clearDevices() {
 boolean AT_Database::deleteDevice(uint8_t device){
   _devices[device].activ = 0;
   deleteWidgetsForDevice(device);
+  return 0;
 }
 
 
