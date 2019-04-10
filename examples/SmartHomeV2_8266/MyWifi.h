@@ -55,6 +55,15 @@ boolean connectWlan(String ssid, String password) {
  return (WiFi.status() == WL_CONNECTED);
 }
 
+//add a new peer to the peer list
+int16_t addPeer(uint8_t mac[6]) {
+  int16_t res = ESP_OK;
+  if (!esp_now_is_peer_exist(mac)) {
+    res = esp_now_add_peer(mac,ESP_NOW_ROLE_SLAVE,1,NULL,0);
+    if (res != ESP_OK) Serial.printf("Pairing failed with error %i \n",res);
+  }
+  return res;
+} 
 
 // callback for ESP Now
 void readESPNow(uint8_t *mac_addr, uint8_t *r_data, uint8_t data_len) {
@@ -93,7 +102,7 @@ void readESPNow(uint8_t *mac_addr, uint8_t *r_data, uint8_t data_len) {
     packets = database.getResponse(devnr,&buf[0],&sz);
     if (packets>0) {
       Serial.println("Send response");
-      err = esp_now_add_peer(mac_addr,ESP_NOW_ROLE_SLAVE,0,NULL,0);
+      err = addPeer(mac_addr);
       if (err == ESP_OK) {
         err = esp_now_send(mac_addr, buf, sz);
         if (err != ESP_OK) Serial.println("Sen data failed");
@@ -122,10 +131,11 @@ void sendData(uint16_t index) {
     val = database.getResult(index);
     sendbuf.addSwitchOut(val.value[0]!=0, ch);
     sendbuf.fillBuffer(buf,&sz);
-    err = esp_now_add_peer(buf,ESP_NOW_ROLE_MAX,0,NULL,0);
+    err = addPeer(buf);
+    //err = 0;
     if (err == ESP_OK) {
       err = esp_now_send(buf, buf, sz);
-      if (err != ESP_OK) Serial.println("Send data failed");
+      if (err != ESP_OK) Serial.printf("Send data failed Error %i\n",err);
     }
   }
 }
@@ -135,6 +145,7 @@ boolean initESPNow() {
   esp_now_deinit();
   boolean result = (esp_now_init() == ESP_OK);
   if (result) { 
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     esp_now_register_recv_cb(readESPNow);
     Serial.println("ESP Now init OK");
   } else { 
