@@ -1,4 +1,4 @@
-//Defines English messages v0.1
+//Defines English messages v0.5
 
 #define ATTXTCHANNEL "Channel"
 #define ATTXTCHANNELS "Channels"
@@ -10,6 +10,7 @@
 #define ATTXTDETAILS "Details"
 #define ATTXTDEVSTP "Device Setup"
 #define ATTXTWDGSTP "Widget Setup"
+#define ATTXTSYSSTP "System Setup"
 #define ATTXTWIDGET "Widget"
 #define ATTXTSMARTHOME "Smart Home"
 #define ATTXTCANCEL "Cancel"
@@ -28,3 +29,14 @@
 #define ATTXTDECIMALS "Decimals"
 #define ATTXTPAGE "Page"
 #define ATTXTPOSAITION "Position"
+#define ATTXTWLAN "WLAN"
+#define ATTXTWPS "WPS"
+#define ATTXTPASSWORD "Password"
+#define ATTXTNETWORK "Network"
+#define ATTXTNOWLAN "No WLAN found"
+#define ATTXTACTIVE "active"
+#define ATTXTNTPSERVER "NTP server"
+#define ATTXTPAGE "Page"
+#define ATTXTON "On"
+#define ATTXTOFF "Off"
+#define ATTXTINTERVAL "Refresh (s)"

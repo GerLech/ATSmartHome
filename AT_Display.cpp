@@ -1,4 +1,4 @@
-//Version 0.4
+//Version 0.5
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
@@ -10,13 +10,18 @@
 #include "Adafruit_ILI9341.h"
 #include <XPT2046_Touchscreen.h>
 #include "TouchEvent.h"
+#if defined(ESP32)
+  #include "WiFi.h"
+#else
+  #include "ESP8266WiFi.h"
+#endif
 
 //fonts from the ArduiTouch library
 #include "fonts/AT_Bold12pt7b.h"
 #include "fonts/AT_Standard9pt7b.h"
 
 #include "AT_Layout.h"
-
+#define ATVERSION "0.5"
 const char keys[3][42] = {
   {'a','b','c','d','e','f',
    'g','h','i','j','k','l',
@@ -83,6 +88,12 @@ void AT_Display::display(boolean on) {
   }
 }
 
+//this callback will be cold if system setup has changed
+void AT_Display::registerOnSystemChanged(void (*callback)()){
+  _onSystemChange = callback;
+}
+
+
 void AT_Display::updateDisplay() {
   if (millis() > _nextDisplay) {
     if (_curPage == ATPAGRESULTS) showCurrentPage();
@@ -140,28 +151,38 @@ void AT_Display::showResults(){
 //show a simple widget
 void AT_Display::showSimpleWidget(uint16_t x, uint16_t y, ATDISPLAYWIDGET wdg){
   ATSTYLE style;
+  String val;
+  uint16_t fill;
   style.font = (wdg.size == ATWIDGET_BIG)?&AT_Bold12pt7b:&AT_Standard9pt7b;
   style.fill = wdg.bgcolor;
   style.border = wdg.bgcolor;
   style.color = wdg.fontcolor;
   style.alignment = ATALIGNCENTER;
-  if (_database->isSwitchOut(wdg.source) && (wdg.size == ATWIDGET_SMALL)) {
-    if (_database->getBooleanValue(wdg.source)==0) style.fill = wdg.bgcolorOn;
-    style.border = ATblack;
-    showRoundedBox(x,y,240,30,wdg.label,style);
-  } else {
-    String msg = wdg.label+" "+_database->getValueString(wdg.source,wdg.precision,true);
-    switch(wdg.size) {
-      case ATWIDGET_SMALL : showBox(x,y,240,30,msg,style); break;
-      case ATWIDGET_LEFT:
-      case ATWIDGET_RIGHT: showBox(x,y,120,30,wdg.label,style);
-        showBox(x,y+30,120,30,_database->getValueString(wdg.source,wdg.precision,true),style);
-        break;
-      case ATWIDGET_BIG: showBox(x,y,240,30,wdg.label,style);
-        showBox(x,y+30,240,30,_database->getValueString(wdg.source,wdg.precision,true),style);
-        break;
+  fill = style.fill;
+  if (_database->isSwitchOut(wdg.source)) {
+    val = ATTXTOFF;
+    if (_database->getBooleanValue(wdg.source)==0) {
+      fill = wdg.bgcolorOn;
+      val = ATTXTON;
     }
-
+  } else {
+    val = _database->getValueString(wdg.source,wdg.precision,true);
+  }
+  String msg = wdg.label+" "+val;
+  switch(wdg.size) {
+    case ATWIDGET_SMALL : showBox(x,y,120,30,wdg.label,style);
+      style.fill = fill;
+      showBox(x+120,y,120,30,val,style);
+      break;
+    case ATWIDGET_LEFT:
+    case ATWIDGET_RIGHT: showBox(x,y,120,30,wdg.label,style);
+      style.fill = fill;
+      showBox(x,y+30,120,30,val,style);
+      break;
+    case ATWIDGET_BIG: showBox(x,y,240,30,wdg.label,style);
+      style.fill = fill;
+      showBox(x,y+30,240,30,val,style);
+      break;
   }
 }
 
@@ -201,6 +222,7 @@ void AT_Display::showForm(){
   switch (_curPage) {
     case ATPAGDEVSTP: _curForm = &AT_devfrm; break;
     case ATPAGWDGTSTP: _curForm = &AT_wdgfrm; break;
+    case ATPAGSYSSTP: _curForm = &AT_sysfrm; break;
     default: _curForm = 0;
   }
   if (_curForm == 0) return;
@@ -214,7 +236,10 @@ void AT_Display::showForm(){
       case ATFRMLABEL:
       case ATFRMTEXT:
       case ATFRMFLOAT:
+      case ATFRMSSID:
       case ATFRMINT: showSimpleElement(sz, rw, cl, sy, _editBuffer[i]); break;
+      case ATFRMCHECK:   _tft->fillRect(cl*120,rw*20+40,sz*120,20,ATblack);
+        showCheckbox(rw,cl,sy,_editBuffer[i]); break;
       case ATFRMCOLOR: _tft->fillRect(cl*120,rw*20+40,sz*120,20,_editBuffer[i].toInt());
         _tft->drawRect(cl*120,rw*20+40,sz*120,20,ATwhite);
         break;
@@ -241,17 +266,38 @@ void AT_Display::showBar(uint16_t y, uint8_t type, uint8_t style, String title) 
     case ATBARDEVICE: showDeviceBar(y,style); break;
     case ATBARSCDX: showSCDXBar(y,style,title); break;
     case ATBARWIDGET: showWidgetBar(y,style); break;
+    case ATBARSYSTEM: showTitlePageBar(y,style,"System"); break;
   }
 
 }
+//show a checkbox formelement
+void AT_Display::showCheckbox( uint8_t row, uint8_t col, uint8_t style, String value){
+  uint16_t x = col*120;
+  uint16_t y = row*20+40;
+  ATSTYLE stl=AT_display_styles[style];
 
+  _tft->fillRect(x,y,20,20,stl.fill);
+  _tft->drawRect(x,y,20,20,stl.border);
+  _tft->drawRect(x+1,y+1,18,18,stl.border);
+  if (value != "0") {
+    _tft->drawLine(x,y,x+20,y+20,stl.border);
+    _tft->drawLine(x+1,y,x+20,y+19,stl.border);
+    _tft->drawLine(x,y+1,x+19,y+20,stl.border);
+    _tft->drawLine(x+20,y,x,y+20,stl.border);
+    _tft->drawLine(x+19,y,x,y+19,stl.border);
+    _tft->drawLine(x+20,y+1,x+1,y+20,stl.border);
+  }
+
+}
 //show a bar with status information
 void AT_Display::showStatusBar(uint16_t y, uint8_t style){
   showBox(0,y,240,40,_status,AT_display_styles[style]);
 }
 //show a bar with title and current time
 void AT_Display::showTitleClockBar(uint16_t y, uint8_t style, String title){
-  showBox(0,y,240,40,title,AT_display_styles[style]);
+  showBox(0,y,240,20,title+" V "+ATVERSION,AT_display_styles[style]);
+  showBox(0,y+20,175,20,AT_GetLocalTime(),AT_display_styles[ATSTYLECLOCK]);
+  showBox(175,y+20,65,20,String(ATTXTPAGE)+" "+String(_subpage+1),AT_display_styles[ATSTYLEPAGE]);
 }
 //show a bar withtitle
 void AT_Display::showTitleBar(uint16_t y,uint8_t style,  String title){
@@ -516,6 +562,36 @@ void AT_Display::deleteWidget(){
   switchPage(_backPage);
 }
 
+//show edit form for system setup
+void AT_Display::editSystem(){
+  ATSETUP * stp = _database->getSetup();
+   _editBuffer[0]=ATTXTWLAN;
+   _editBuffer[1]=ATTXTACTIVE;
+   _editBuffer[2]= (stp->useWlan)?"1":"0";
+   _editBuffer[3]=ATTXTNETWORK;
+   _editBuffer[4]=stp->SSID;
+   _editBuffer[5]=ATTXTPASSWORD;
+   _editBuffer[6]=stp->password;
+   _editBuffer[7]=ATTXTNTPSERVER;
+   _editBuffer[8]=stp->NTPserver;
+   _editBuffer[9]=ATTXTINTERVAL;
+   _editBuffer[10]=stp->refresh;
+   switchPage(ATPAGSYSSTP);
+}
+//save system after editing
+void AT_Display::saveSystem(){
+  ATSETUP * stp = _database->getSetup();
+  stp->useWlan = _editBuffer[2] == "1";
+  stp->SSID = _editBuffer[4];
+  stp->password = _editBuffer[6];
+  stp->NTPserver = _editBuffer[8];
+  stp->refresh = _editBuffer[10].toInt();
+  _database->writeSetup();
+  if (_onSystemChange) _onSystemChange();
+  switchPage(ATPAGRESULTS);
+}
+
+
 //return the color index in palette
 uint8_t AT_Display::getColorIndex(uint16_t color){
   uint8_t index = 0;
@@ -585,6 +661,7 @@ void AT_Display::editorOff(){
     case ATEDTFLOAT: _editBuffer[_curElement]=_edvaltxt; break;
     case ATEDTCOLOR: _editBuffer[_curElement]=String(_edvalint); break;
     case ATEDTSELECT: _editBuffer[_curElement]=String(_edvalint); break;
+    case ATEDTSSID: _editBuffer[_curElement]=_edvaltxt; break;
   }
   _edType = 0;
   _tft->fillScreen(ATblack);
@@ -688,6 +765,34 @@ void AT_Display::edSelectorShow(){
   }
 }
 
+//switch selector list editor on
+void AT_Display::edSSIDOn(uint8_t element){
+  _curElement = element;
+  _edvaltxt = _editBuffer[element];
+  _edType = ATEDTSSID;
+  _tft->fillScreen(ATblack);
+  WiFi.disconnect();
+  int n = WiFi.scanNetworks();
+  Serial.println("scan done");
+  if (n == 0) {
+    _edOptCnt=0;
+    showBox(0,40,240,20,ATTXTNOWLAN,AT_display_styles[ATSTYLESELECTED]);
+  } else {
+    _edOptCnt = n;
+    edSSIDShow();
+  }
+}
+//show a num pad
+void AT_Display::edSSIDShow(){
+  uint8_t sl;
+  for (int i = 0; i < _edOptCnt; ++i) {
+    _edOptions[i] = WiFi.SSID(i);
+    sl=(_edvaltxt == _edOptions[i])?ATSTYLESELECTED:ATSTYLEOPTIONS;
+    showBox(0,i*20,240,20,_edOptions[i],AT_display_styles[sl]);
+    delay(10);
+  }
+}
+
 
 //*****************private functions for touch events ***********
 
@@ -749,6 +854,7 @@ void AT_Display::clickSaveCancelBar(boolean left){
   if (left) {
     switch (_curPage) {
       case ATPAGDEVSTP: saveDevice(); break;
+      case ATPAGSYSSTP: saveSystem(); break;
     }
   } else {
     switchPage(AT_display_pages[_curPage].previousPage);
@@ -786,8 +892,9 @@ void AT_Display::clickBar(boolean bottom,TS_Point p){
   switch (typ) {
     case ATBARBACK: switchPage(AT_display_pages[_curPage].previousPage); break;
     case ATBARSTATUS: switchPage(ATPAGDEVICE); break;
-    case ATBARSAVECANCEL: clickSaveCancelBar(p.x > 120);
-    case ATBARSCDX: clickSCDXBar(p.x < 120, y < 20);
+    case ATBARSAVECANCEL: clickSaveCancelBar(p.x < 120); break;
+    case ATBARSCDX: clickSCDXBar(p.x < 120, y < 20); break;
+    case ATBARTITLECLOCK: editSystem(); break;
   }
 }
 void AT_Display::clickResults(uint8_t line, uint8_t column) {
@@ -819,6 +926,10 @@ void AT_Display::clickForm(uint8_t line, uint8_t column, uint16_t xPos){
     case ATFRMFLOAT: edNumPadOn(element,ATEDTFLOAT); break;
     case ATFRMINT: edNumPadOn(element, ATEDTINT); break;
     case ATFRMSELECT: edSelectorOn(element); break;
+    case ATFRMSSID: edSSIDOn(element); break;
+    case ATFRMCHECK: _editBuffer[element] = (_editBuffer[element]=="0")?"1":"0";
+      showCheckbox(_curForm->elements[element].row,_curForm->elements[element].col,_curForm->elements[element].style,_editBuffer[element]);
+      break;
   }
 
 }
@@ -843,6 +954,7 @@ void AT_Display::editorClick(TS_Point p) {
     case ATEDTFLOAT: numPadClick(p,true); break;
     case ATEDTCOLOR: edColorClick(p); break;
     case ATEDTSELECT: edSelectClick(p); break;
+    case ATEDTSSID: edSSIDClick(p); break;
   }
 }
 
@@ -934,4 +1046,12 @@ void AT_Display::edSelectClick(TS_Point p){
     editorOff();
   }
 
+}
+
+void AT_Display::edSSIDClick(TS_Point p){
+  uint8_t index = p.y / 20;
+  if (index < _edOptCnt) {
+    _edvaltxt = _edOptions[index];
+    editorOff();
+  }
 }

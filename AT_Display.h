@@ -1,7 +1,7 @@
 /*
 ||
 || @file ATDISPLAYPAGE.h
-|| @version 0.4
+|| @version 0.5
 || @author Gerald Lechner
 || @contact lechge@gmail.com
 ||
@@ -27,6 +27,10 @@
 || #
 ||
 */
+
+#ifndef AT_Display_h
+#define AT_Display_h
+
 #include "AT_LanguageGE.h"
 
 
@@ -64,6 +68,7 @@
 #define ATBARSTATUS 7
 #define ATBARSCDX 8
 #define ATBARWIDGET 9
+#define ATBARSYSTEM 10
 
 #define ATCONTRESULTS 0
 #define ATCONTLIST 1
@@ -76,6 +81,7 @@
 #define ATFRMCHECK 4
 #define ATFRMCOLOR 5
 #define ATFRMSELECT 6
+#define ATFRMSSID 7
 
 #define ATEDTOFF 0
 #define ATEDTTEXT 1
@@ -84,6 +90,7 @@
 #define ATEDTCOLOR 4
 #define ATEDTSELECT 5
 #define ATEDTCONFIRM 6
+#define ATEDTSSID 7
 
 #define ATALIGNCENTER 0
 #define ATALIGNLEFT 1
@@ -129,9 +136,6 @@ struct {
   ATFORMELEMENT elements[24];
 } ATFORM;
 
-#ifndef AT_Display_h
-#define AT_Display_h
-
 class AT_Display {
 public:
   AT_Display(Adafruit_ILI9341 *tft, AT_Database *database,  uint8_t led, uint8_t arduitouchVersion = 0);
@@ -139,6 +143,8 @@ public:
   void begin(uint16_t update);
   //switch background led on or off
   void display(boolean on);
+  //this callback will be cold if system setup has changed
+  void registerOnSystemChanged(void (*callback)());
   //poll for events and update the display
   //should be placed in the main loop
   void updateDisplay();
@@ -183,6 +189,8 @@ public:
   void showForm();
   //show a simple formelement
   void showSimpleElement(uint8_t size, uint8_t row, uint8_t col, uint8_t style, String value);
+  //show a checkbox formelement
+  void showCheckbox( uint8_t row, uint8_t col, uint8_t style, String value);
   //show a list of devices
   void showDeviceList();
   //show a list of channels for a device
@@ -203,6 +211,10 @@ public:
   void saveWidget();
   //delete a widget
   void deleteWidget();
+  //show edit form for system setup
+  void editSystem();
+  //save system after editing
+  void saveSystem();
   //return the color index in palette
   uint8_t getColorIndex(uint16_t color);
   //reguister a new device in the database
@@ -249,6 +261,10 @@ public:
   void edSelectorOn(uint8_t element);
   //show a num pad
   void edSelectorShow();
+  //switch selector list editor on
+  void edSSIDOn(uint8_t element);
+  //show a num pad
+  void edSSIDShow();
 
 private:
   void switchPage(uint8_t page);
@@ -269,6 +285,7 @@ private:
   void edColorClick(TS_Point p);
   void numPadClick(TS_Point p, boolean isFloat);
   void edSelectClick(TS_Point p);
+  void edSSIDClick(TS_Point p);
 
 
   Adafruit_ILI9341 *_tft; //pointer to the display handler
@@ -285,6 +302,7 @@ private:
   uint8_t _curWidgetSl; //current widgets slot if required
   String _status; //status or error message
   void(*_onResultChange)(uint16_t index) = NULL;
+  void(*_onSystemChange)() = NULL;
   String _editBuffer[24]; //hold information while editing
   uint8_t _curElement; //index to element in form
   const ATFORM * _curForm; //pointer to current form
@@ -293,6 +311,8 @@ private:
   String _edvaltxt; //current editor input
   int32_t _edvalint; //current edit integer
   float _edvalflt; //current edit float
+  String _edOptions[16]; //option list
+  uint8_t _edOptCnt; //belegte Einträge
   uint8_t _arduitouchVersion; //version of arduitouch Hardware
 };
 

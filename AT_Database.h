@@ -1,7 +1,7 @@
 /*
 ||
 || @file AT_Database.h
-|| @version 0.4
+|| @version 0.5
 || @author Gerald Lechner
 || @contact lechge@gmail.com
 ||
@@ -40,8 +40,8 @@
   #define ATMAXDEVCHAN 8 //max number channels per device
   #define ATMAXPAGES 32 //max number of result pages
 #else
-  #define ATMAXCHANNELS 64 //max number of channels
-  #define ATMAXDEVICE 16 //max number of devices
+  #define ATMAXCHANNELS 32 //max number of channels
+  #define ATMAXDEVICE 8 //max number of devices
   #define ATMAXDEVCHAN 4 //max number channels per device
   #define ATMAXPAGES 4 //max number of result pages
 #endif
@@ -105,6 +105,15 @@ struct {
   ATDISPLAYWIDGET widgets[ATWIDGETSPERPAGE];
 } ATDISPLAYPAGE;
 
+typedef //struct setup
+struct {
+  boolean useWlan;
+  String SSID;
+  String password;
+  String NTPserver;
+  uint16_t refresh;
+} ATSETUP;
+
 //convers id to a string with format xx:xx:xx:xx:xx:xx
 String AT_GetId(uint8_t id[6]);
 //returns the current date and time as a string (not working yet)
@@ -112,7 +121,7 @@ String AT_GetLocalTime();
 
 class AT_Database {
 public:
-  AT_Database(String deviceFile = "/devices.txt", String confFile = "/config.txt");
+  AT_Database(String deviceFile = "/devices.txt", String confFile = "/config.txt", String setupFile = "/setup.txt");
   //read the widget configuration from SPIFFS
   boolean readConfig(String fileName);
   boolean readConfig();
@@ -125,6 +134,14 @@ public:
   //write the device list into a SPIFFS file
   boolean writeDevices(String fileName);
   boolean writeDevices();
+  //read the device list from SPIFFS file
+  boolean readSetup(String fileName);
+  boolean readSetup();
+  //write the device list into a SPIFFS file
+  boolean writeSetup(String fileName);
+  boolean writeSetup();
+  //get pointer to setup structure
+  ATSETUP * getSetup();
   //return the index for a device with a certain id or -1 if not Foundation
   int16_t findDevice(uint8_t id[6]);
   //set result from a message buffer data packets
@@ -199,8 +216,10 @@ private:
   ATCURVALUES _results[ATMAXCHANNELS]; //array to hold results
   ATDEVICE _devices[ATMAXDEVICE];      //array to hold devices
   ATDISPLAYPAGE _pages[ATMAXPAGES];    //array to hold widget configurations
+  ATSETUP _setup;
   String _deviceFile;                   //file to save devices
   String _confFile;                   //file to save devices
+  String _setupFile;                   //file to save setup
   String _newDevice = "";                  //id of a newly detected device
   AT_MessageBuffer _newMsg;            //messageblock received from this device
 };

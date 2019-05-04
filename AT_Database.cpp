@@ -1,4 +1,4 @@
-//Version 0.4
+//Version 0.5
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
@@ -10,6 +10,7 @@
 #include "FS.h"
 #if defined(ESP32)
   #include "SPIFFS.h"
+  #include "time.h"
   #define ATUSEESP32
 #else
   #include "ESP8266WiFi.h"
@@ -20,11 +21,12 @@
 
 #define CONFVERSION "V1.0"
 
-AT_Database::AT_Database(String deviceFile, String confFile) {
+AT_Database::AT_Database(String deviceFile, String confFile, String setupFile) {
   //init the database
   uint16_t i;
   _deviceFile = deviceFile;
   _confFile = confFile;
+  _setupFile = setupFile;
   for (i = 0; i<ATMAXCHANNELS; i++) _results[i].valid = 0;
   for (i = 0; i<ATMAXDEVICE; i++) _devices[i].activ = 0;
   for (i = 0; i<ATMAXPAGES; i++) {
@@ -203,6 +205,53 @@ boolean AT_Database::writeDevices(String fileName) {
   }
   return true;
 }
+//read the device list from SPIFFS file
+boolean AT_Database::readSetup(String fileName){
+  String nam,val;
+  _setup.useWlan = false;
+  _setup.SSID = "";
+  _setup.password = "";
+  _setup.NTPserver = "de.pool.ntp.org";
+  _setup.refresh = 15;
+  if (!SPIFFS.exists(fileName)) {
+    //does not exist create
+    Serial.println("Create setup file");
+    return writeDevices(fileName);
+  }
+  File f = SPIFFS.open(fileName, "r");
+  if (!f) {
+    return false;
+  }
+  while (f.available() ) {
+    nam = f.readStringUntil('=');
+    val = f.readStringUntil('\n');
+    if (nam=="useWlan") _setup.useWlan = val.toInt();
+    if (nam=="SSID") _setup.SSID = val;
+    if (nam=="password") _setup.password = val;
+    if (nam=="NTPserver") _setup.NTPserver = val;
+    if (nam=="refresh") _setup.refresh = val.toInt();
+  }
+}
+boolean AT_Database::readSetup(){
+  return readSetup(_setupFile);
+}
+//write the device list into a SPIFFS file
+boolean AT_Database::writeSetup(String fileName){
+  File f = SPIFFS.open(fileName, FILE_WRITE);
+  if (!f) return false;
+  f.print("useWlan=");f.print(_setup.useWlan);f.printf("\n");
+  f.print("SSID=");f.print(_setup.SSID );f.printf("\n");
+  f.print("password=");f.print(_setup.password );f.printf("\n");
+  f.print("NTPserver=");f.print(_setup.NTPserver );f.printf("\n");
+  f.print("refresh=");f.print(_setup.refresh );f.printf("\n");
+}
+boolean AT_Database::writeSetup(){
+  return writeSetup(_setupFile);
+}
+//get pointer to setup structure
+ATSETUP * AT_Database::getSetup(){
+  return &_setup;
+}
 
 int16_t AT_Database::findDevice(uint8_t id[6]) {
   uint8_t j;
@@ -350,7 +399,7 @@ String AT_GetId(uint8_t id[6]){
 
 String AT_GetLocalTime() {
   char sttime[20] = "No Time available!";
-  #ifdef ATUSEESP32
+  #if defined(ESP32)
     struct tm timeinfo;
     if(!getLocalTime(&timeinfo)){
       return sttime;

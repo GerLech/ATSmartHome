@@ -1,5 +1,5 @@
 /* Defines Styles, Pages and Forms for AT Smarthome
-version 0.1
+version 0.5
 */
 
 #define ATSTYLEBLUEYELLOW 0
@@ -15,6 +15,10 @@ version 0.1
 #define ATSTYLEOPTIONS 10
 #define ATSTYLESELECTED 11
 #define ATSTYLEFRMLBLCTR 12
+#define ATSTYLEMAINTITLE 13
+#define ATSTYLECLOCK 14
+#define ATSTYLEPAGE 15
+
 
 const ATSTYLE AT_display_styles[] = {
   { //ATSTYLEBLUEYELLOW
@@ -108,6 +112,27 @@ const ATSTYLE AT_display_styles[] = {
     .alignment = ATALIGNCENTER,
     .font = &AT_Standard9pt7b
   },
+  { //ATSTYLEMAINTITLE
+    .fill = ATlime,
+    .border = ATlime,
+    .color = ATblack,
+    .alignment = ATALIGNCENTER,
+    .font = &AT_Standard9pt7b
+  },
+  { //ATSTYLEFRMLBLCTR
+    .fill = ATlime,
+    .border = ATlime,
+    .color = ATblack,
+    .alignment = ATALIGNLEFT,
+    .font = &AT_Standard9pt7b
+  },
+  { //ATSTYLEFRMLBLCTR
+    .fill = ATlime,
+    .border = ATlime,
+    .color = ATblack,
+    .alignment = ATALIGNRIGHT,
+    .font = &AT_Standard9pt7b
+  },
 };
 
 #define ATPAGRESULTS 0
@@ -126,7 +151,7 @@ const ATPAGETYPE AT_display_pages[8] = {
     .subpages = 32,
     .content = ATCONTRESULTS,
     .topbarType = ATBARTITLECLOCK,
-    .topbarStyle = ATSTYLEBLUEYELLOW,
+    .topbarStyle = ATSTYLEMAINTITLE,
     .botbarType = ATBARSTATUS,
     .botbarStyle = ATSTYLEBLUEYELLOW,
     {.botbarText = ""},
@@ -175,6 +200,17 @@ const ATPAGETYPE AT_display_pages[8] = {
     .botbarStyle = ATSTYLEBUTTON,
     {.botbarText = ATTXTEXTRA},
     .previousPage = ATPAGCHANNEL
+  },
+  {{ //ATPAGSYSTSTP
+    .title = ATTXTSYSSTP},
+    .subpages = 1,
+    .content = ATCONTFORM,
+    .topbarType = ATBARSYSTEM,
+    .topbarStyle = ATSTYLESMALLTITLE,
+    .botbarType = ATBARSAVECANCEL,
+    .botbarStyle = ATSTYLEBUTTON,
+    {.botbarText = ""},
+    .previousPage = ATPAGRESULTS
   },
 };
 
@@ -345,6 +381,112 @@ const ATFORM AT_wdgfrm = {
       .type = ATFRMINT,
       .size = 1,
       .row = 8,
+      .col = 1,
+      .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
+    },
+
+  }
+};
+
+const ATFORM AT_sysfrm = {
+  .elementCnt = 11,
+  .elements = {
+    {
+      .type = ATFRMLABEL,
+      .size = 2,
+      .row = 0,
+      .col = 0,
+      .style = ATSTYLEFRMLBLCTR,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMLABEL,
+      .size = 1,
+      .row = 1,
+      .col = 0,
+      .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMCHECK,
+      .size = 1,
+      .row = 1,
+      .col = 1,
+      .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMLABEL,
+      .size = 1,
+      .row = 2,
+      .col = 0,
+      .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMSSID,
+      .size = 1,
+      .row = 2,
+      .col = 1,
+      .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMLABEL,
+      .size = 1,
+      .row = 3,
+      .col = 0,
+      .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMTEXT,
+      .size = 1,
+      .row = 3,
+      .col = 1,
+      .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMLABEL,
+      .size = 1,
+      .row = 4,
+      .col = 0,
+      .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMTEXT,
+      .size = 1,
+      .row = 4,
+      .col = 1,
+      .style = ATSTYLEFRMINPUT,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMLABEL,
+      .size = 1,
+      .row = 5,
+      .col = 0,
+      .style = ATSTYLEFRMLBL,
+      .optcnt = 0,
+      .optlist = {}
+    },
+    {
+      .type = ATFRMINT,
+      .size = 1,
+      .row = 5,
       .col = 1,
       .style = ATSTYLEFRMINPUT,
       .optcnt = 0,
