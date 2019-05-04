@@ -5,11 +5,13 @@
 #include "TouchEvent.h"
 #include "FS.h"
 #include "SPIFFS.h"
+#include "WebServer.h"
 //ArduiTouch libraries by Gerald Lechner from github
 #include "AT_Database.h"
 #include "AT_MessageBuffer.h"
 #include "TouchEvent.h"
 #include <AT_Display.h>
+#include "AT_Webserver.h"
 
 
 //used pins
@@ -17,7 +19,7 @@
 #define TFT_DC   4      //display d/c
 #define TFT_RST  22     //display reset
 #define TFT_LED  15     //display background LED
-#define ARDUITOUCH_VERSION 1 //0 for older 1 for new with PNP Transistor
+#define ARDUITOUCH_VERSION 0 //0 for older 1 for new with PNP Transistor
 
 #define TOUCH_CS 14     //touch screen chip select
 #define TOUCH_IRQ 2     //touch screen interrupt
@@ -30,11 +32,14 @@
 //data structures for database and message buffer
 AT_Database database(ATDEVICEFILE,ATCONFIGFILE);
 AT_MessageBuffer msg;
+ATSETUP * stp;
 Adafruit_ILI9341 tft(TFT_CS,TFT_DC,TFT_RST);
 XPT2046_Touchscreen touch(TOUCH_CS,TOUCH_IRQ);
 TouchEvent tevent(touch);
 
 AT_Display dsp(&tft,&database,TFT_LED,ARDUITOUCH_VERSION);
+WebServer srv(80);
+AT_Webserver webserver(&srv,&database);
 
 //Shoud be defined if a Ardui-Touch version 01-02 or higher is used
 //#define ARDUITOUCHB
@@ -57,6 +62,24 @@ void onSwipe(uint8_t direction) {
   dsp.onSwipe(direction);
 }
 
+void handleRoot() {
+  webserver.handleRoot(stp->refresh);
+}
+
+void handleNotFound() {
+  webserver.handleNotFound();
+}
+
+//this function is called if system setup has changed
+void systemChanged() {
+  ATSETUP * stp=database.getSetup();
+  if (stp->useWlan) {
+    connectWlan(stp->SSID,stp->password,stp->NTPserver);
+  } else {
+    disconnectWlan();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial); 
@@ -73,6 +96,7 @@ void setup() {
   dsp.begin(1);
   dsp.display(true);
   dsp.registerOnResultChange(sendData);
+  dsp.registerOnSystemChanged(systemChanged);
   //start flash file system
   if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) Serial.println(F("SPIFFS loaded"));
   initWiFi();
@@ -82,11 +106,18 @@ void setup() {
   
   if (!database.readDevices()) Serial.println("Can not read devices");
   if (!database.readConfig()) Serial.println("Can not read widget config");
+  if (!database.readSetup()) Serial.println("Can not read setup");
+  stp = database.getSetup();
+  if (stp->useWlan) connectWlan(stp->SSID, stp->password, stp->NTPserver);
   dsp.showCurrentPage();
+  srv.on("/",handleRoot);
+  srv.onNotFound(handleNotFound);
+  webserver.begin();
 
 }
 
 void loop() {
   tevent.pollTouchScreen();
   dsp.updateDisplay();
+  webserver.handleClient();
 }

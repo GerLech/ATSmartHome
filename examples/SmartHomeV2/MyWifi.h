@@ -2,7 +2,9 @@
  *  and global variables associated to WiFi usage
  */
 #include <WiFi.h>
+#include <time.h>
 #include <esp_now.h>
+#include <ESPmDNS.h>
 
 //Access point password and channel
 #define APPWD "123456789"
@@ -10,9 +12,9 @@
 
 
 //NTP server and offsets for MET
-#define NTP_SERVER "de.pool.ntp.org"
+
 #define GMT_OFFSET_SEC 3600
-#define DAYLIGHT_OFFSET_SEC 0
+#define DAYLIGHT_OFFSET_SEC 3600
 
 //Global variables
 esp_now_peer_info_t info;
@@ -26,11 +28,28 @@ void initWiFi() {
   return;
 }
 
+void initMDNS() {
+  if (!MDNS.begin("smart.home")) {
+    Serial.println("MDNS init failed");
+  } else {
+    Serial.println("MDNS successful started");
+    MDNS.addService("http", "tcp", 80);
+  }
+  
+}
+
+
+void disconnectWlan() {
+  if (WiFi.status() == WL_CONNECTED) WiFi.disconnect();
+}
+
 //establish a Wlan connection 
-boolean connectWlan(String ssid, String password) {
+boolean connectWlan(String ssid, String password, String NTPserver = "") {
+  disconnectWlan();
   //pointer to the characters inside the string
   char* txtSSID = const_cast<char*>(ssid.c_str());
   char* txtPassword = const_cast<char*>(password.c_str());  
+  char* txtNTP = const_cast<char*>(NTPserver.c_str());
   //connect to wlan
   WiFi.begin(txtSSID, txtPassword);
   uint8_t timeout = 0;
@@ -42,12 +61,15 @@ boolean connectWlan(String ssid, String password) {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+    Serial.println(txtNTP);
+    if (NTPserver != "") configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, txtNTP);
     //Aktuelle Uhrzeit ausgeben
     Serial.println(AT_GetLocalTime());
+    initMDNS();
  }
  return (WiFi.status() == WL_CONNECTED);
 }
+
 
 void printESP_Now_Err (String prefix, esp_err_t err) {
   switch (err) {
