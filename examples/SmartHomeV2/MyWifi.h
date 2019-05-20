@@ -16,6 +16,8 @@
 #define GMT_OFFSET_SEC 3600
 #define DAYLIGHT_OFFSET_SEC 3600
 
+#define HOSTNAME "smart.home"
+
 //Global variables
 esp_now_peer_info_t info;
 
@@ -29,7 +31,7 @@ void initWiFi() {
 }
 
 void initMDNS() {
-  if (!MDNS.begin("smart.home")) {
+  if (!MDNS.begin(HOSTNAME)) {
     Serial.println("MDNS init failed");
   } else {
     Serial.println("MDNS successful started");
@@ -59,6 +61,7 @@ boolean connectWlan(String ssid, String password, String NTPserver = "") {
   }
   //we wait max 10 s until connected
   if (WiFi.status() == WL_CONNECTED) {
+    WiFi.setHostname(HOSTNAME);
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     Serial.println(txtNTP);
