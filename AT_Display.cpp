@@ -900,8 +900,11 @@ void AT_Display::clickBar(boolean bottom,TS_Point p){
 void AT_Display::clickResults(uint8_t line, uint8_t column) {
   int16_t index = findWidgetSource(line,column);
   if (index >= 0) {
-    _database->toggleResult(index);
-    if (_onResultChange) _onResultChange(index);
+    ATCURVALUES res = _database->getResult(index);
+    if (res.type == ATTYPE_SWITCHOUT) {
+      _database->toggleResult(index);
+      if (_onResultChange) _onResultChange(index);
+    }
   }
 
 }

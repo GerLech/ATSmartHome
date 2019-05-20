@@ -12,42 +12,39 @@
 #include "WebServer.h"
 
 const PROGMEM char AT_WIDGET_TEMPLATE[] =
-"<div style=\"background-color:#%06x;border-color:#%06x;color:#%06x;font-size:%ipt;font-weight:%s;text-align:center;width:%i%%;float:%s;\">"
-"<div style='padding:5px;'>";
+"<button type='submit' name='widget' value=%i style=\"border:none;background-color:#%06x;border-color:#%06x;color:#%06x;font-size:%ipt;font-weight:%s;text-align:center;width:%i%%;float:%s;\">\n"
+"<div style='padding:5px;'>\n";
 
 const PROGMEM char HTML_HEADER[] =
-"<!DOCTYPE HTML>"
-"<html>"
-"<head>"
-"<meta name = \"viewport\" content = \"width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0>\">"
-"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">"
-"<title>Smart Home</title>"
-"<style>"
-"body { background-color: #d2f3eb; font-family: Arial, Helvetica, Sans-Serif; Color: #000000;font-size:12pt;width:800px; }"
-"th { background-color: #b6c0db; color: #050ed2;font-weight:lighter;font-size:10pt;}"
-"table, th, td {border: 1px solid black;}"
-".titel {font-size:18pt;font-weight:bold;text-align:center;} "
-"</style>";
+"<!DOCTYPE HTML>\n"
+"<html>\n"
+"<head>\n"
+"<meta name = \"viewport\" content = \"width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0>\">\n"
+"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n"
+"<title>Smart Home</title>\n"
+"<style>\n"
+"body { background-color: #d2f3eb; font-family: Arial, Helvetica, Sans-Serif; Color: #000000;font-size:12pt;width:800px; }\n"
+"th { background-color: #b6c0db; color: #050ed2;font-weight:lighter;font-size:10pt;}\n"
+"table, th, td {border: 1px solid black;}\n"
+".titel {font-size:18pt;font-weight:bold;text-align:center;} \n"
+"</style>\n";
 
 const PROGMEM char HTML_HEADER_END[] =
-"</head>"
-"<body><div id='main_div' style='margin-left:15px;margin-right:15px;'>";
+"</head>\n"
+"<body><div id='main_div' style='margin-left:15px;margin-right:15px;'>\n";
 const PROGMEM char HTML_END[] =
-"</body></html>";
+"</body></html>\n";
 const PROGMEM char HTML_SCRIPT[] =
-"<script language=\"javascript\">"
-"function reload() {"
-"document.location=\"http://%s\";}"
-"function setWidth() {"
-  "var x = screen.width;"
-  "if (x<800) document.getElementById('main_div').style.width = (x-50) + 'px';}"
-"</script>";
+"<script language=\"javascript\">\n"
+"function reload() {\n"
+"document.location=\"http://%s\";}\n"
+"function setWidth() {\n"
+  "var x = screen.width;\n"
+  "if (x<800) document.getElementById('main_div').style.width = (x-50) + 'px';}\n"
+"</script>\n";
 const PROGMEM char HTML_END_RELOAD[] =
-"</div><script language=\"javascript\">setTimeout(reload, %i);</script></body>"
-"</html>";
-const PROGMEM char HTML_SET_WIDTH[] =
-"</div><script language=\"javascript\">setWidth();</script></body>"
-"</html>";
+"</div><script language=\"javascript\">setWidth(); setTimeout(reload, %i);</script></body>\n"
+"</html>\n";
 
 
 
@@ -65,6 +62,15 @@ void AT_Webserver::handleClient(){
 }
 
 void AT_Webserver::handleRoot(uint8_t refresh){
+  //first check arguments to perform actions
+  if (_server->hasArg("widget")){
+    uint16_t id = _server->arg("widget").toInt();
+    ATCURVALUES res = _database->getResult(id);
+    if (res.type == ATTYPE_SWITCHOUT) {
+      _database->toggleResult(id);
+      if (_onResultChange) _onResultChange(id);
+    }
+  }
   char tmp1[20];
   char htmlbuf[256];
   _server->setContentLength(CONTENT_LENGTH_UNKNOWN);
@@ -75,14 +81,13 @@ void AT_Webserver::handleRoot(uint8_t refresh){
   sprintf(htmlbuf,HTML_SCRIPT,tmp1);
   _server->sendContent(htmlbuf);
   _server->sendContent(HTML_HEADER_END);
-  _server->sendContent("<div class=\"titel\">ArduiTouch Smart&nbsp;Home</div><form method=\"post\">");
+  _server->sendContent("<div class=\"titel\">ArduiTouch Smart&nbsp;Home</div>\n");
 
   sendResults();
   //Das Formular mit den Eingabefeldern wird mit den aktuellen Werten befüllt
   //sprintf(htmlbuf,HTML_CONFIG,txtSSID,txtPassword,txtUser,txtPwd,txtId);
   //und an den Browsewr gesendet
   //server->sendContent("<h1>SMART Home</h1>");
-  _server->sendContent(HTML_SET_WIDTH);
   sprintf(htmlbuf,HTML_END_RELOAD,refresh*1000);
   _server->sendContent(htmlbuf);
 
@@ -117,6 +122,7 @@ void AT_Webserver::sendResults(){
   x = 0; y = 0;
   ATDISPLAYPAGE pg;
   ATDISPLAYWIDGET wdg;
+  _server->sendContent("<form method='post'>\n");
   for (uint8_t p = 0; p<ATMAXPAGES; p++) {
     pg = _database->getPage(p);
     for (uint8_t i = 0;i<ATWIDGETSPERPAGE;i++) {
@@ -128,6 +134,7 @@ void AT_Webserver::sendResults(){
       }
     }
   }
+  _server->sendContent("</form>\n");
 
 }
 
@@ -159,7 +166,7 @@ void AT_Webserver::sendSimpleWidget(ATDISPLAYWIDGET wdg){
     case ATWIDGET_LEFT: iflo=1; width = 50; break;
     case ATWIDGET_RIGHT: iflo=2; width = 50; break;
   }
-  sprintf(htmlbuf,AT_WIDGET_TEMPLATE,convertColor(fill),convertColor(wdg.bgcolor),convertColor(wdg.fontcolor),15,weight[iwgt],width,flo[iflo]);
+  sprintf(htmlbuf,AT_WIDGET_TEMPLATE,wdg.source,convertColor(fill),convertColor(wdg.bgcolor),convertColor(wdg.fontcolor),15,weight[iwgt],width,flo[iflo]);
   _server->sendContent(htmlbuf);
   if (wdg.size == ATWIDGET_SMALL) {
     msg = wdg.label + " " + val;
@@ -170,5 +177,9 @@ void AT_Webserver::sendSimpleWidget(ATDISPLAYWIDGET wdg){
     String msg = wdg.label+" "+val;
     _server->sendContent(val);
   }
-  _server->sendContent("</div></div>");
+  _server->sendContent("</div></button>\n");
+}
+//register a callback function result change event
+void AT_Webserver::registerOnResultChange(void (*callback)(uint16_t index)){
+  _onResultChange = callback;
 }

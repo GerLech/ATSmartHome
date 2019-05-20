@@ -42,12 +42,15 @@ class AT_Webserver {
     void handleClient();
     void handleRoot(uint8_t refresh = 10);
     void handleNotFound();
+    //register a callback function result change event
+    void registerOnResultChange(void (*callback)(uint16_t index));
   private:
     uint32_t convertColor(uint16_t color565);
     void sendResults();
     void sendSimpleWidget(ATDISPLAYWIDGET wdg);
     AT_Database * _database;
     WebServer * _server;
+    void(*_onResultChange)(uint16_t index) = NULL;
 };
 
 #endif
