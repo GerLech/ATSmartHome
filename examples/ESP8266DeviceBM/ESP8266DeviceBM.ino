@@ -171,7 +171,6 @@ boolean initBme() {
   if (!status) {
       Serial.println("Could not find a valid BME280 sensor, check wiring!");
       hasBme = false;
-      while (1);
   }
   return status;
 }
@@ -182,9 +181,8 @@ boolean initBmp() {
   boolean status = bmp.begin(0x77);  
   if (!status) status = bmp.begin(0x76);
   if (!status) {
-      Serial.println("Could not find a valid BME280 sensor, check wiring!");
-      hasBme = false;
-      while (1);
+      Serial.println("Could not find a valid BMP280 sensor, check wiring!");
+      hasBmp = false;
   }
   if (status) {
   /* Default settings from datasheet. */
@@ -213,7 +211,7 @@ void setup() {
   msg.clear();
   hasBme = initBme();
   if (hasBme && DEBUG) {
-    Serial.println("Found Sensor BMP");
+    Serial.println("Found Sensor BME");
   }
   hasBmp = initBmp();
   if (hasBmp && DEBUG) {
